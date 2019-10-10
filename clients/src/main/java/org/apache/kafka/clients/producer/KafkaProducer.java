@@ -231,6 +231,7 @@ import static org.apache.kafka.common.serialization.ExtendedSerializer.Wrapper.e
 public class KafkaProducer<K, V> implements Producer<K, V> {
 
     private final Logger log;
+    // 开始初始化生产者Id squence
     private static final AtomicInteger PRODUCER_CLIENT_ID_SEQUENCE = new AtomicInteger(1);
     private static final String JMX_PREFIX = "kafka.producer";
     public static final String NETWORK_THREAD_PREFIX = "kafka-producer-network-thread";
@@ -328,6 +329,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                   KafkaClient kafkaClient) {
         try {
             Map<String, Object> userProvidedConfigs = config.originals();
+            // 配置信息
             this.producerConfig = config;
             this.time = Time.SYSTEM;
             String clientId = config.getString(ProducerConfig.CLIENT_ID_CONFIG);
@@ -353,8 +355,12 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             List<MetricsReporter> reporters = config.getConfiguredInstances(ProducerConfig.METRIC_REPORTER_CLASSES_CONFIG,
                     MetricsReporter.class);
             reporters.add(new JmxReporter(JMX_PREFIX));
+            // 设置指标收集器 指标项
             this.metrics = new Metrics(metricConfig, reporters, time);
+
             ProducerMetrics metricsRegistry = new ProducerMetrics(this.metrics);
+
+            // 设置分区器
             this.partitioner = config.getConfiguredInstance(ProducerConfig.PARTITIONER_CLASS_CONFIG, Partitioner.class);
             long retryBackoffMs = config.getLong(ProducerConfig.RETRY_BACKOFF_MS_CONFIG);
             if (keySerializer == null) {
@@ -378,17 +384,24 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             userProvidedConfigs.put(ProducerConfig.CLIENT_ID_CONFIG, clientId);
             List<ProducerInterceptor<K, V>> interceptorList = (List) (new ProducerConfig(userProvidedConfigs, false)).getConfiguredInstances(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG,
                     ProducerInterceptor.class);
+
+            // 设置 producer 拦截器
             this.interceptors = new ProducerInterceptors<>(interceptorList);
+
+            // 初始化 cluster资源监听器
             ClusterResourceListeners clusterResourceListeners = configureClusterResourceListeners(keySerializer, valueSerializer, interceptorList, reporters);
             this.maxRequestSize = config.getInt(ProducerConfig.MAX_REQUEST_SIZE_CONFIG);
             this.totalMemorySize = config.getLong(ProducerConfig.BUFFER_MEMORY_CONFIG);
             this.compressionType = CompressionType.forName(config.getString(ProducerConfig.COMPRESSION_TYPE_CONFIG));
 
+            // 缓存满了之后最大等待时间
             this.maxBlockTimeMs = config.getLong(ProducerConfig.MAX_BLOCK_MS_CONFIG);
             this.requestTimeoutMs = config.getInt(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG);
             this.transactionManager = configureTransactionState(config, logContext, log);
             int retries = configureRetries(config, transactionManager != null, log);
+            // max.in.flight.requests 这个参数的使用
             int maxInflightRequests = configureInflightRequests(config, transactionManager != null);
+            // 如果使用幂等性这个特性那么 acks 必须配置为-1（all）
             short acks = configureAcks(config, transactionManager != null, log);
 
             this.apiVersions = new ApiVersions();
@@ -461,14 +474,17 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
 
         TransactionManager transactionManager = null;
 
+        // 用户是否启用 幂等性
         boolean userConfiguredIdempotence = false;
         if (config.originals().containsKey(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG))
             userConfiguredIdempotence = true;
 
+        // 用户是否启用 事务
         boolean userConfiguredTransactions = false;
         if (config.originals().containsKey(ProducerConfig.TRANSACTIONAL_ID_CONFIG))
             userConfiguredTransactions = true;
 
+        // 获取默认配置
         boolean idempotenceEnabled = config.getBoolean(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG);
 
         if (!idempotenceEnabled && userConfiguredIdempotence && userConfiguredTransactions)
