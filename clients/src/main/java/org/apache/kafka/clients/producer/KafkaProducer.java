@@ -405,6 +405,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             short acks = configureAcks(config, transactionManager != null, log);
 
             this.apiVersions = new ApiVersions();
+            // 发送记录累加器(相当于有界的队列)，发送的消息会添加到累加器中
             this.accumulator = new RecordAccumulator(logContext,
                     config.getInt(ProducerConfig.BATCH_SIZE_CONFIG),
                     this.totalMemorySize,
@@ -419,10 +420,12 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             if (metadata != null) {
                 this.metadata = metadata;
             } else {
+                // 云数据
                 this.metadata = new Metadata(retryBackoffMs, config.getLong(ProducerConfig.METADATA_MAX_AGE_CONFIG),
                     true, true, clusterResourceListeners);
                 this.metadata.update(Cluster.bootstrap(addresses), Collections.<String>emptySet(), time.milliseconds());
             }
+            // channel
             ChannelBuilder channelBuilder = ClientUtils.createChannelBuilder(config);
             Sensor throttleTimeSensor = Sender.throttleTimeSensor(metricsRegistry.senderMetrics);
             KafkaClient client = kafkaClient != null ? kafkaClient : new NetworkClient(
@@ -441,6 +444,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                     apiVersions,
                     throttleTimeSensor,
                     logContext);
+            // 初始化发送器
             this.sender = new Sender(logContext,
                     client,
                     this.metadata,
@@ -457,6 +461,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                     apiVersions);
             String ioThreadName = NETWORK_THREAD_PREFIX + " | " + clientId;
             this.ioThread = new KafkaThread(ioThreadName, this.sender, true);
+            // 开启io线程
             this.ioThread.start();
             this.errors = this.metrics.sensor("errors");
             config.logUnused();

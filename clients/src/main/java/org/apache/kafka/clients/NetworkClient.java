@@ -199,6 +199,7 @@ public class NetworkClient implements KafkaClient {
         if (metadataUpdater == null) {
             if (metadata == null)
                 throw new IllegalArgumentException("`metadata` must not be null");
+            // 元数据更新器
             this.metadataUpdater = new DefaultMetadataUpdater(metadata);
         } else {
             this.metadataUpdater = metadataUpdater;
@@ -206,6 +207,7 @@ public class NetworkClient implements KafkaClient {
         this.selector = selector;
         this.clientId = clientId;
         this.inFlightRequests = new InFlightRequests(maxInFlightRequestsPerConnection);
+        // 连接状态
         this.connectionStates = new ClusterConnectionStates(reconnectBackoffMs, reconnectBackoffMax);
         this.socketSendBuffer = socketSendBuffer;
         this.socketReceiveBuffer = socketReceiveBuffer;
@@ -469,6 +471,7 @@ public class NetworkClient implements KafkaClient {
             return responses;
         }
 
+        // 发送更新
         long metadataTimeout = metadataUpdater.maybeUpdate(now);
         try {
             this.selector.poll(Utils.min(timeout, metadataTimeout, requestTimeoutMs));
@@ -583,6 +586,7 @@ public class NetworkClient implements KafkaClient {
         int inflight = Integer.MAX_VALUE;
         Node found = null;
 
+        // 随机取一个节点
         int offset = this.randOffset.nextInt(nodes.size());
         for (int i = 0; i < nodes.size(); i++) {
             int idx = (offset + i) % nodes.size();
@@ -872,7 +876,7 @@ public class NetworkClient implements KafkaClient {
             if (metadataTimeout > 0) {
                 return metadataTimeout;
             }
-
+            // 拉取最最新的 节点信息
             // Beware that the behavior of this method and the computation of timeouts for poll() are
             // highly dependent on the behavior of leastLoadedNode.
             Node node = leastLoadedNode(now);
@@ -949,7 +953,7 @@ public class NetworkClient implements KafkaClient {
          */
         private long maybeUpdate(long now, Node node) {
             String nodeConnectionId = node.idString();
-
+            // 发送请求
             if (canSendRequest(nodeConnectionId)) {
                 this.metadataFetchInProgress = true;
                 MetadataRequest.Builder metadataRequest;
@@ -974,7 +978,9 @@ public class NetworkClient implements KafkaClient {
                 return reconnectBackoffMs;
             }
 
+            // 初始化连接
             if (connectionStates.canConnect(nodeConnectionId, now)) {
+                // 初始化连接
                 // we don't have a connection to this node right now, make one
                 log.debug("Initialize connection to node {} for sending metadata request", node);
                 initiateConnect(node, now);

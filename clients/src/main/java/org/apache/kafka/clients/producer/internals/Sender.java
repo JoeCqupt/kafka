@@ -199,6 +199,7 @@ public class Sender implements Runnable {
      * @param now The current POSIX time in milliseconds
      */
     void run(long now) {
+        // 事务管理器
         if (transactionManager != null) {
             try {
                 if (transactionManager.shouldResetProducerStateAfterResolvingSequences())
@@ -235,6 +236,7 @@ public class Sender implements Runnable {
             }
         }
 
+        // 对数据进行发送
         long pollTimeout = sendProducerData(now);
         client.poll(pollTimeout, now);
     }
@@ -242,7 +244,7 @@ public class Sender implements Runnable {
     private long sendProducerData(long now) {
         Cluster cluster = metadata.fetch();
 
-        // get the list of partitions with data ready to send
+        // get the list of partitions with data ready to send 获取partition列表
         RecordAccumulator.ReadyCheckResult result = this.accumulator.ready(cluster, now);
 
         // if there are any partitions whose leaders are not known yet, force metadata update

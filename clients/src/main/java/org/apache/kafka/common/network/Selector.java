@@ -170,7 +170,9 @@ public class Selector implements Selectable, AutoCloseable {
         this.sensors = new SelectorMetrics(metrics, metricGrpPrefix, metricTags, metricsPerConnection);
         this.channelBuilder = channelBuilder;
         this.recordTimePerConnection = recordTimePerConnection;
+        // idle 
         this.idleExpiryManager = connectionMaxIdleMs < 0 ? null : new IdleExpiryManager(time, connectionMaxIdleMs);
+        // 内存池
         this.memoryPool = memoryPool;
         this.lowMemThreshold = (long) (0.1 * this.memoryPool.size());
         this.log = logContext.logger(Selector.class);
@@ -466,7 +468,7 @@ public class Selector implements Selectable, AutoCloseable {
 
             boolean sendFailed = false;
             try {
-
+                // 完成连接过程
                 /* complete any connections that have finished their handshake (either normally or immediately) */
                 if (isImmediatelyConnected || key.isConnectable()) {
                     if (channel.finishConnect()) {
