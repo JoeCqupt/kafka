@@ -462,6 +462,7 @@ public class NetworkClient implements KafkaClient {
     public List<ClientResponse> poll(long timeout, long now) {
         ensureActive();
 
+        // todo 处理 中断的发送请求
         if (!abortedSends.isEmpty()) {
             // If there are aborted sends because of unsupported version exceptions or disconnects,
             // handle them immediately without waiting for Selector#poll.
@@ -591,6 +592,7 @@ public class NetworkClient implements KafkaClient {
         for (int i = 0; i < nodes.size(); i++) {
             int idx = (offset + i) % nodes.size();
             Node node = nodes.get(idx);
+            // todo  inFlightRequests
             int currInflight = this.inFlightRequests.count(node.idString());
             if (currInflight == 0 && isReady(node, now)) {
                 // if we find an established connection with no in-flight requests we can stop right away
@@ -870,6 +872,7 @@ public class NetworkClient implements KafkaClient {
         public long maybeUpdate(long now) {
             // should we update our metadata?
             long timeToNextMetadataUpdate = metadata.timeToNextUpdate(now);
+            // todo metadataFetchInProgress
             long waitForMetadataFetch = this.metadataFetchInProgress ? requestTimeoutMs : 0;
 
             long metadataTimeout = Math.max(timeToNextMetadataUpdate, waitForMetadataFetch);
