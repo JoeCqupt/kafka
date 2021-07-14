@@ -942,15 +942,18 @@ class KafkaApis(val requestChannel: RequestChannel,
     if (topics.isEmpty || topicResponses.size == topics.size) {
       topicResponses
     } else {
+      // 获取由于meta变更导致不存在的topics
       val nonExistentTopics = topics -- topicResponses.map(_.topic).toSet
       val responsesForNonExistentTopics = nonExistentTopics.map { topic =>
         if (isInternal(topic)) {
+          // 创建内部Topic TODO
           val topicMetadata = createInternalTopic(topic)
           if (topicMetadata.error == Errors.COORDINATOR_NOT_AVAILABLE)
             new MetadataResponse.TopicMetadata(Errors.INVALID_REPLICATION_FACTOR, topic, true, java.util.Collections.emptyList())
           else
             topicMetadata
         } else if (allowAutoTopicCreation && config.autoCreateTopicsEnable) {
+          // 创建Topic TODO
           createTopic(topic, config.numPartitions, config.defaultReplicationFactor)
         } else {
           new MetadataResponse.TopicMetadata(Errors.UNKNOWN_TOPIC_OR_PARTITION, topic, false, java.util.Collections.emptyList())
