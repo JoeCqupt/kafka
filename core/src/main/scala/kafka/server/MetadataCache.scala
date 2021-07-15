@@ -39,9 +39,12 @@ import org.apache.kafka.common.requests.{MetadataResponse, UpdateMetadataRequest
  */
 class MetadataCache(brokerId: Int) extends Logging {
 
+  // topicName - [partitionId, partitionState]
   private val cache = mutable.Map[String, mutable.Map[Int, UpdateMetadataRequest.PartitionState]]()
   @volatile private var controllerId: Option[Int] = None
+  // brokerId - Broker
   private val aliveBrokers = mutable.Map[Int, Broker]()
+  // brokerId - [ListenerName, Node]
   private val aliveNodes = mutable.Map[Int, collection.Map[ListenerName, Node]]()
   private val partitionMetadataLock = new ReentrantReadWriteLock()
 
@@ -202,6 +205,9 @@ class MetadataCache(brokerId: Int) extends Logging {
         aliveBrokers(broker.id) = Broker(broker.id, endPoints, Option(broker.rack))
         aliveNodes(broker.id) = nodes.asScala
       }
+
+      // 获取当前brokerId
+      //   aliveNodes = mutable.Map[Int, collection.Map[ListenerName, Node]]()
       aliveNodes.get(brokerId).foreach { listenerMap =>
         val listeners = listenerMap.keySet
         if (!aliveNodes.values.forall(_.keySet == listeners))

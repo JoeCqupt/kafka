@@ -104,6 +104,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         case ApiKeys.PRODUCE => handleProduceRequest(request)
         case ApiKeys.FETCH => handleFetchRequest(request)
         case ApiKeys.LIST_OFFSETS => handleListOffsetRequest(request)
+        // 获取topic的metadata
         case ApiKeys.METADATA => handleTopicMetadataRequest(request)
         case ApiKeys.LEADER_AND_ISR => handleLeaderAndIsrRequest(request)
         case ApiKeys.STOP_REPLICA => handleStopReplicaRequest(request)
@@ -980,22 +981,25 @@ class KafkaApis(val requestChannel: RequestChannel,
         else
           metadataRequest.topics.asScala.toSet
       }
-
+    // 认证相关
     var (authorizedTopics, unauthorizedForDescribeTopics) =
       topics.partition(topic => authorize(request.session, Describe, new Resource(Topic, topic)))
 
     var unauthorizedForCreateTopics = Set[String]()
 
     if (authorizedTopics.nonEmpty) {
+      // 获取不存在的Topics
       val nonExistingTopics = metadataCache.getNonExistingTopics(authorizedTopics)
+      // 判断配置是否运行自动创建主题
       if (metadataRequest.allowAutoTopicCreation && config.autoCreateTopicsEnable && nonExistingTopics.nonEmpty) {
+        // 判断当前的session账号是否有创建主题的权限
         if (!authorize(request.session, Create, Resource.ClusterResource)) {
           authorizedTopics --= nonExistingTopics
           unauthorizedForCreateTopics ++= nonExistingTopics
         }
       }
     }
-
+    // 构造Topic创建失败的结果
     val unauthorizedForCreateTopicMetadata = unauthorizedForCreateTopics.map(topic =>
       new MetadataResponse.TopicMetadata(Errors.TOPIC_AUTHORIZATION_FAILED, topic, isInternal(topic),
         java.util.Collections.emptyList()))
