@@ -71,9 +71,12 @@ class MetadataCache(brokerId: Int) extends Logging {
     cache.get(topic).map { partitions =>
       partitions.map { case (partitionId, partitionState) =>
         val topicPartition = TopicAndPartition(topic, partitionId)
+        // 获取该partition所在的Leader节点的地址信息
         val maybeLeader = getAliveEndpoint(partitionState.basePartitionState.leader, listenerName)
         val replicas = partitionState.basePartitionState.replicas.asScala.map(_.toInt)
+        // 获取该partition的副本副本节点信息
         val replicaInfo = getEndpoints(replicas, listenerName, errorUnavailableEndpoints)
+        // 获取该partition离线副本的节点信息
         val offlineReplicaInfo = getEndpoints(partitionState.offlineReplicas.asScala.map(_.toInt), listenerName, errorUnavailableEndpoints)
 
         maybeLeader match {
@@ -206,8 +209,7 @@ class MetadataCache(brokerId: Int) extends Logging {
         aliveNodes(broker.id) = nodes.asScala
       }
 
-      // 获取当前brokerId
-      //   aliveNodes = mutable.Map[Int, collection.Map[ListenerName, Node]]()
+      // 检测每个Broker的ListenerName配置是不是一样的 （按理说应该是一样的才对）
       aliveNodes.get(brokerId).foreach { listenerMap =>
         val listeners = listenerMap.keySet
         if (!aliveNodes.values.forall(_.keySet == listeners))
@@ -218,7 +220,9 @@ class MetadataCache(brokerId: Int) extends Logging {
       updateMetadataRequest.partitionStates.asScala.foreach { case (tp, info) =>
         val controllerId = updateMetadataRequest.controllerId
         val controllerEpoch = updateMetadataRequest.controllerEpoch
+        // 如果Partition的状态 主Partition正处于删除阶段
         if (info.basePartitionState.leader == LeaderAndIsr.LeaderDuringDelete) {
+          // 更新本地缓存信息
           removePartitionInfo(tp.topic, tp.partition)
           stateChangeLogger.trace(s"Deleted partition $tp from metadata cache in response to UpdateMetadata " +
             s"request sent by controller $controllerId epoch $controllerEpoch with correlation id $correlationId")

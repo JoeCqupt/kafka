@@ -887,9 +887,11 @@ class KafkaApis(val requestChannel: RequestChannel,
       adminZkClient.createTopic(topic, numPartitions, replicationFactor, properties, RackAwareMode.Safe)
       info("Auto creation of topic %s with %d partitions and replication factor %d is successful"
         .format(topic, numPartitions, replicationFactor))
+      // 这个错误码 client是如何处理的呢？
       new MetadataResponse.TopicMetadata(Errors.LEADER_NOT_AVAILABLE, topic, isInternal(topic),
         java.util.Collections.emptyList())
     } catch {
+          // 主题已经存在；表示可能其他broker已经创建了这个topic
       case _: TopicExistsException => // let it go, possibly another broker created this topic
         new MetadataResponse.TopicMetadata(Errors.LEADER_NOT_AVAILABLE, topic, isInternal(topic),
           java.util.Collections.emptyList())
@@ -899,6 +901,11 @@ class KafkaApis(val requestChannel: RequestChannel,
     }
   }
 
+  /**
+   * 判断当前活着的Broker数目满不满足 内部Topic对副本要求
+   * @param topic
+   * @return
+   */
   private def createInternalTopic(topic: String): MetadataResponse.TopicMetadata = {
     if (topic == null)
       throw new IllegalArgumentException("topic must not be null")
@@ -943,15 +950,18 @@ class KafkaApis(val requestChannel: RequestChannel,
     if (topics.isEmpty || topicResponses.size == topics.size) {
       topicResponses
     } else {
+      // 获取由于meta变更导致不存在的topics
       val nonExistentTopics = topics -- topicResponses.map(_.topic).toSet
       val responsesForNonExistentTopics = nonExistentTopics.map { topic =>
         if (isInternal(topic)) {
+          // 创建内部Topic
           val topicMetadata = createInternalTopic(topic)
           if (topicMetadata.error == Errors.COORDINATOR_NOT_AVAILABLE)
             new MetadataResponse.TopicMetadata(Errors.INVALID_REPLICATION_FACTOR, topic, true, java.util.Collections.emptyList())
           else
             topicMetadata
         } else if (allowAutoTopicCreation && config.autoCreateTopicsEnable) {
+          // 创建Topic
           createTopic(topic, config.numPartitions, config.defaultReplicationFactor)
         } else {
           new MetadataResponse.TopicMetadata(Errors.UNKNOWN_TOPIC_OR_PARTITION, topic, false, java.util.Collections.emptyList())
