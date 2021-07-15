@@ -887,7 +887,7 @@ class KafkaApis(val requestChannel: RequestChannel,
       adminZkClient.createTopic(topic, numPartitions, replicationFactor, properties, RackAwareMode.Safe)
       info("Auto creation of topic %s with %d partitions and replication factor %d is successful"
         .format(topic, numPartitions, replicationFactor))
-      // 这个错误码 client是如何处理的呢？
+      // 这个错误码?  client如何处理？ TODO
       new MetadataResponse.TopicMetadata(Errors.LEADER_NOT_AVAILABLE, topic, isInternal(topic),
         java.util.Collections.emptyList())
     } catch {

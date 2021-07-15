@@ -64,8 +64,11 @@ class AdminZkClient(zkClient: KafkaZkClient) extends Logging {
    */
   def getBrokerMetadatas(rackAwareMode: RackAwareMode = RackAwareMode.Enforced,
                          brokerList: Option[Seq[Int]] = None): Seq[BrokerMetadata] = {
+    // 去ZK中实时去拉取最新的Brokers信息 TODO
     val allBrokers = zkClient.getAllBrokersInCluster
+    // 过滤Broker
     val brokers = brokerList.map(brokerIds => allBrokers.filter(b => brokerIds.contains(b.id))).getOrElse(allBrokers)
+    // 检查机架信息
     val brokersWithRack = brokers.filter(_.rack.nonEmpty)
     if (rackAwareMode == RackAwareMode.Enforced && brokersWithRack.nonEmpty && brokersWithRack.size < brokers.size) {
       throw new AdminOperationException("Not all brokers have rack information. Add --disable-rack-aware in command line" +
