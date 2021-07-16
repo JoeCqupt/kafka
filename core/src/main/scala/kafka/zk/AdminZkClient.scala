@@ -51,7 +51,9 @@ class AdminZkClient(zkClient: KafkaZkClient) extends Logging {
                   replicationFactor: Int,
                   topicConfig: Properties = new Properties,
                   rackAwareMode: RackAwareMode = RackAwareMode.Enforced) {
+    // 获取所有的(Broker+机架)信息
     val brokerMetadatas = getBrokerMetadatas(rackAwareMode)
+    // 副本分配结果
     val replicaAssignment = AdminUtils.assignReplicasToBrokers(brokerMetadatas, partitions, replicationFactor)
     createOrUpdateTopicPartitionAssignmentPathInZK(topic, replicaAssignment, topicConfig)
   }
