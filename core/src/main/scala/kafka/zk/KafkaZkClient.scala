@@ -260,12 +260,14 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
 
     def set(configData: Array[Byte]): SetDataResponse = {
       val setDataRequest = SetDataRequest(ConfigEntityZNode.path(rootEntityType, sanitizedEntityName),
+        // FIXME: use configData
         ConfigEntityZNode.encode(config), ZkVersion.MatchAnyVersion)
       retryRequestUntilConnected(setDataRequest)
     }
 
     def createOrSet(configData: Array[Byte]): Unit = {
       val path = ConfigEntityZNode.path(rootEntityType, sanitizedEntityName)
+      // FIXME: use configData
       try createRecursive(path, ConfigEntityZNode.encode(config))
       catch {
         case _: NodeExistsException => set(configData).maybeThrow
@@ -274,8 +276,10 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
 
     val configData = ConfigEntityZNode.encode(config)
 
+    // 先尝试直接设置data
     val setDataResponse = set(configData)
     setDataResponse.resultCode match {
+      // 如果path不存在，再尝试创建节点
       case Code.NONODE => createOrSet(configData)
       case _ => setDataResponse.maybeThrow
     }

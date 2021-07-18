@@ -38,9 +38,11 @@ public class Topic {
             throw new InvalidTopicException("Topic name is illegal, it can't be empty");
         if (topic.equals(".") || topic.equals(".."))
             throw new InvalidTopicException("Topic name cannot be \".\" or \"..\"");
+        // topic长度有限制：249
         if (topic.length() > MAX_NAME_LENGTH)
             throw new InvalidTopicException("Topic name is illegal, it can't be longer than " + MAX_NAME_LENGTH +
                     " characters, topic name: " + topic);
+        // topic限制 [a-zA-Z0-9.-_]
         if (!containsValidPattern(topic))
             throw new InvalidTopicException("Topic name \"" + topic + "\" is illegal, it contains a character other than " +
                     "ASCII alphanumerics, '.', '_' and '-'");

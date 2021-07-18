@@ -214,7 +214,7 @@ object AdminUtils extends Logging with AdminUtilities {
           // 2. the broker has already assigned a replica AND there is one or more brokers that do not have replica assigned
           // 力求副本在不同的broker上
           if ((!racksWithReplicas.contains(rack) || racksWithReplicas.size == numRacks)
-            // FIXME
+            // FIXME: 后面这个判断是没有意义的
               && (!brokersWithReplicas.contains(broker) || brokersWithReplicas.size == numBrokers)) {
             replicaBuffer += broker
             racksWithReplicas += rack

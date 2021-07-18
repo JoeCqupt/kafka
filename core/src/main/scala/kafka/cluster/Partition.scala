@@ -57,6 +57,7 @@ class Partition(val topic: String,
   private val localBrokerId = if (!isOffline) replicaManager.config.brokerId else -1
   private val logManager = if (!isOffline) replicaManager.logManager else null
   private val zkClient = if (!isOffline) replicaManager.zkClient else null
+  // 包含所有的副本：副本BrokerId - 副本信息
   // allReplicasMap includes both assigned replicas and the future replica if there is ongoing replica movement
   private val allReplicasMap = new Pool[Int, Replica]
   // The read lock is only required when multiple reads are executed and needs to be in a consistent manner
@@ -630,6 +631,7 @@ class Partition(val topic: String,
   def appendRecordsToLeader(records: MemoryRecords, isFromClient: Boolean, requiredAcks: Int = 0): LogAppendInfo = {
     val (info, leaderHWIncremented) = inReadLock(leaderIsrUpdateLock) {
       leaderReplicaIfLocal match {
+          // 获取partition leader副本
         case Some(leaderReplica) =>
           val log = leaderReplica.log.get
           val minIsr = log.config.minInSyncReplicas

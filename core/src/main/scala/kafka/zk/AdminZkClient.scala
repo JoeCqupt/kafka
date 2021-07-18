@@ -53,7 +53,7 @@ class AdminZkClient(zkClient: KafkaZkClient) extends Logging {
                   rackAwareMode: RackAwareMode = RackAwareMode.Enforced) {
     // 获取所有的(Broker+机架)信息
     val brokerMetadatas = getBrokerMetadatas(rackAwareMode)
-    // 副本分配结果
+    // 副本分配结果Map[key: partition-leader-brokerId , value: List[value:replica-brokerId]]
     val replicaAssignment = AdminUtils.assignReplicasToBrokers(brokerMetadatas, partitions, replicationFactor)
     createOrUpdateTopicPartitionAssignmentPathInZK(topic, replicaAssignment, topicConfig)
   }
@@ -100,6 +100,7 @@ class AdminZkClient(zkClient: KafkaZkClient) extends Logging {
 
     if (!update) {
       // write out the config if there is any, this isn't transactional with the partition assignments
+      // zk中创建topic配置信息：path： config/topics/$topic  value: 该topic的配置信息properties
       zkClient.setOrCreateEntityConfigs(ConfigType.Topic, topic, config)
     }
 
@@ -122,9 +123,11 @@ class AdminZkClient(zkClient: KafkaZkClient) extends Logging {
     Topic.validate(topic)
 
     if (!update) {
+      // 检查zk中是否已经有这个主题的元信息
       if (zkClient.topicExists(topic))
         throw new TopicExistsException(s"Topic '$topic' already exists.")
       else if (Topic.hasCollisionChars(topic)) {
+        // 由于metric name的原因，在kafka的topicName中的'_'和'.'表示同一个字符；
         val allTopics = zkClient.getAllTopicsInCluster
         // check again in case the topic was created in the meantime, otherwise the
         // topic could potentially collide with itself
@@ -136,10 +139,11 @@ class AdminZkClient(zkClient: KafkaZkClient) extends Logging {
         }
       }
     }
-
+    // 校验是不是每一个partition的副本都已经被正确的分配
     if (partitionReplicaAssignment.values.map(_.size).toSet.size != 1)
       throw new InvalidReplicaAssignmentException("All partitions should have the same number of replicas")
 
+    // 检查同一个broker上有没有分配可多个副本
     partitionReplicaAssignment.values.foreach(reps =>
       if (reps.size != reps.toSet.size)
         throw new InvalidReplicaAssignmentException("Duplicate replica assignment found: " + partitionReplicaAssignment)
@@ -156,6 +160,7 @@ class AdminZkClient(zkClient: KafkaZkClient) extends Logging {
 
       if (!update) {
         info("Topic creation " + assignment)
+        // 创建：path：/brokers/topics/$topic  value：partition分配信息
         zkClient.createTopicAssignment(topic, assignment)
       } else {
         info("Topic update " + assignment)
