@@ -54,18 +54,23 @@ class ByteBufferLogInputStream implements LogInputStream<MutableRecordBatch> {
         if (remaining < batchSize)
             return null;
 
+        // MAGIC_LENGTH：1
         byte magic = buffer.get(buffer.position() + MAGIC_OFFSET);
 
         ByteBuffer batchSlice = buffer.slice();
         batchSlice.limit(batchSize);
+
+        // 表明buffer已经读取完毕
         buffer.position(buffer.position() + batchSize);
 
         if (magic < 0 || magic > RecordBatch.CURRENT_MAGIC_VALUE)
             throw new CorruptRecordException("Invalid magic found in record: " + magic);
 
         if (magic > RecordBatch.MAGIC_VALUE_V1)
+            // 当前新版本
             return new DefaultRecordBatch(batchSlice);
         else
+            // 老版本
             return new AbstractLegacyRecordBatch.ByteBufferLegacyRecordBatch(batchSlice);
     }
 

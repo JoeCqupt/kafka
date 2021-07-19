@@ -634,7 +634,9 @@ class Partition(val topic: String,
           // 获取partition leader副本
         case Some(leaderReplica) =>
           val log = leaderReplica.log.get
+          // 配置：min.insync.replicas
           val minIsr = log.config.minInSyncReplicas
+          // 目前同步的副本个数
           val inSyncSize = inSyncReplicas.size
 
           // Avoid writing to leader if there are not enough insync replicas to make it safe
@@ -642,7 +644,7 @@ class Partition(val topic: String,
             throw new NotEnoughReplicasException("Number of insync replicas for partition %s is [%d], below required minimum [%d]"
               .format(topicPartition, inSyncSize, minIsr))
           }
-
+          // Log 添加数据的入口
           val info = log.appendAsLeader(records, leaderEpoch = this.leaderEpoch, isFromClient)
           // probably unblock some follower fetch requests since log end offset has been updated
           replicaManager.tryCompleteDelayedFetch(TopicPartitionOperationKey(this.topic, this.partitionId))
