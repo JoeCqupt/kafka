@@ -671,6 +671,7 @@ class Log(@volatile var dir: File,
 
       // they are valid, insert them in the log
       lock synchronized {
+        // 检查log文件是否是打开的
         checkIfMemoryMappedBufferClosed()
         if (assignOffsets) {
           // assign offsets to the message set

@@ -57,9 +57,11 @@ private[kafka] object LogValidator extends Logging {
                                                       timestampDiffMaxMs: Long,
                                                       partitionLeaderEpoch: Int,
                                                       isFromClient: Boolean): ValidationAndOffsetAssignResult = {
+    // 如果都没有启用压缩
     if (sourceCodec == NoCompressionCodec && targetCodec == NoCompressionCodec) {
       // check the magic value
       if (!records.hasMatchingMagic(magic))
+        // 存在 发送的消息版本 和 Broker的消息版本配置 对不上 TODO
         convertAndAssignOffsetsNonCompressed(records, offsetCounter, compactedTopic, time, now, timestampType,
           timestampDiffMaxMs, magic, partitionLeaderEpoch, isFromClient)
       else
@@ -67,6 +69,7 @@ private[kafka] object LogValidator extends Logging {
         assignOffsetsNonCompressed(records, offsetCounter, now, compactedTopic, timestampType, timestampDiffMaxMs,
           partitionLeaderEpoch, isFromClient, magic)
     } else {
+      // 配置了压缩 TODO
       validateMessagesAndAssignOffsetsCompressed(records, offsetCounter, time, now, sourceCodec, targetCodec, compactedTopic,
         magic, timestampType, timestampDiffMaxMs, partitionLeaderEpoch, isFromClient)
     }
@@ -89,6 +92,7 @@ private[kafka] object LogValidator extends Logging {
             s"and count of records $count")
       }
 
+      // FIXME 低版本不可能有 producerId
       if (batch.hasProducerId && batch.baseSequence < 0)
         throw new InvalidRecordException(s"Invalid sequence number ${batch.baseSequence} in record batch " +
           s"with producerId ${batch.producerId}")
@@ -176,6 +180,7 @@ private[kafka] object LogValidator extends Logging {
                                          magic: Byte): ValidationAndOffsetAssignResult = {
     var maxTimestamp = RecordBatch.NO_TIMESTAMP
     var offsetOfMaxTimestamp = -1L
+    // 消息offset分配： 初始offset
     val initialOffset = offsetCounter.value
 
     for (batch <- records.batches.asScala) {
