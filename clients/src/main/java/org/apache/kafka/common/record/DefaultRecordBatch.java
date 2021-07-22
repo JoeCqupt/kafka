@@ -141,6 +141,7 @@ public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRe
 
     @Override
     public void ensureValid() {
+        // RECORD_BATCH_OVERHEAD 表示record起始点之前数据的的长度；如果连这点长度都没有说明这个数据包有问题
         if (sizeInBytes() < RECORD_BATCH_OVERHEAD)
             throw new InvalidRecordException("Record batch is corrupt (the size " + sizeInBytes() +
                     " is smaller than the minimum allowed overhead " + RECORD_BATCH_OVERHEAD + ")");
