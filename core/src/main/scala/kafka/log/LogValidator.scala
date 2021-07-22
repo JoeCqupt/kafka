@@ -92,7 +92,7 @@ private[kafka] object LogValidator extends Logging {
             s"and count of records $count")
       }
 
-      // FIXME 低版本不可能有 producerId
+      // FIXME 低版本不可能有 producerId - 新版本已经修复过了
       if (batch.hasProducerId && batch.baseSequence < 0)
         throw new InvalidRecordException(s"Invalid sequence number ${batch.baseSequence} in record batch " +
           s"with producerId ${batch.producerId}")
@@ -117,6 +117,7 @@ private[kafka] object LogValidator extends Logging {
     // set for magic v0 and v1. For non-compressed messages, there is no inner record for magic v0 and v1,
     // so we depend on the batch-level CRC check in Log.analyzeAndValidateRecords(). For magic v2 and above,
     // there is no record-level CRC to check.
+    // 对于低版本需要这这里检测内部每一条record的CRC
     if (batch.magic <= RecordBatch.MAGIC_VALUE_V1 && batch.isCompressed)
       record.ensureValid()
 
@@ -189,20 +190,25 @@ private[kafka] object LogValidator extends Logging {
       var maxBatchTimestamp = RecordBatch.NO_TIMESTAMP
       var offsetOfMaxBatchTimestamp = -1L
 
+      // 遍历batch里面的records
       for (record <- batch.asScala) {
         validateRecord(batch, record, now, timestampType, timestampDiffMaxMs, compactedTopic)
+        // 获取下一个
         val offset = offsetCounter.getAndIncrement()
+        // 一个recordBatch内最大值
         if (batch.magic > RecordBatch.MAGIC_VALUE_V0 && record.timestamp > maxBatchTimestamp) {
           maxBatchTimestamp = record.timestamp
           offsetOfMaxBatchTimestamp = offset
         }
       }
 
+      // 所有recordBatch内最大值
       if (batch.magic > RecordBatch.MAGIC_VALUE_V0 && maxBatchTimestamp > maxTimestamp) {
         maxTimestamp = maxBatchTimestamp
         offsetOfMaxTimestamp = offsetOfMaxBatchTimestamp
       }
 
+      // 设置最后的offset
       batch.setLastOffset(offsetCounter.value - 1)
 
       if (batch.magic >= RecordBatch.MAGIC_VALUE_V2)
@@ -375,6 +381,7 @@ private[kafka] object LogValidator extends Logging {
   }
 
   private def validateKey(record: Record, compactedTopic: Boolean) {
+    // topic清除策略配置包含compact，必须包含key
     if (compactedTopic && !record.hasKey)
       throw new InvalidRecordException("Compacted topic cannot accept message without key.")
   }
@@ -388,11 +395,15 @@ private[kafka] object LogValidator extends Logging {
                                 now: Long,
                                 timestampType: TimestampType,
                                 timestampDiffMaxMs: Long) {
+    // timestampDiffMaxMs是由 "message.timestamp.difference.max.ms" 配置定义的
+    // timestampType是由 "message.timestamp.type" 配置定义的
+    // 判断如果消息Record里面的时间戳距离现在now超过了一定的阈值就不接受此消息
     if (timestampType == TimestampType.CREATE_TIME
       && record.timestamp != RecordBatch.NO_TIMESTAMP
       && math.abs(record.timestamp - now) > timestampDiffMaxMs)
       throw new InvalidTimestampException(s"Timestamp ${record.timestamp} of message with offset ${record.offset} is " +
         s"out of range. The timestamp should be within [${now - timestampDiffMaxMs}, ${now + timestampDiffMaxMs}]")
+    // producer 不能设置timestamp type为：LOG_APPEND_TIME
     if (batch.timestampType == TimestampType.LOG_APPEND_TIME)
       throw new InvalidTimestampException(s"Invalid timestamp type in message $record. Producer should not set " +
         s"timestamp type to LogAppendTime.")

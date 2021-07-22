@@ -670,6 +670,7 @@ class Log(@volatile var dir: File,
       var validRecords = trimInvalidBytes(records, appendInfo)
 
       // they are valid, insert them in the log
+      // 这里加锁
       lock synchronized {
         // 检查log文件是否是打开的
         checkIfMemoryMappedBufferClosed()

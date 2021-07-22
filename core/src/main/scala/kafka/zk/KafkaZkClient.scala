@@ -260,14 +260,14 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
 
     def set(configData: Array[Byte]): SetDataResponse = {
       val setDataRequest = SetDataRequest(ConfigEntityZNode.path(rootEntityType, sanitizedEntityName),
-        // FIXME: use configData
+        // FIXME: use configData 新版本已经修复了 - 新版本已经修复过了
         ConfigEntityZNode.encode(config), ZkVersion.MatchAnyVersion)
       retryRequestUntilConnected(setDataRequest)
     }
 
     def createOrSet(configData: Array[Byte]): Unit = {
       val path = ConfigEntityZNode.path(rootEntityType, sanitizedEntityName)
-      // FIXME: use configData
+      // FIXME: use configData 新版本已经修复了 - 新版本已经修复过了
       try createRecursive(path, ConfigEntityZNode.encode(config))
       catch {
         case _: NodeExistsException => set(configData).maybeThrow

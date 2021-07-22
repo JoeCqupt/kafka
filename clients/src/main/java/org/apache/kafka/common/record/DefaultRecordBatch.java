@@ -317,6 +317,7 @@ public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRe
             return Collections.emptyIterator();
 
         if (!isCompressed())
+            // 无压缩的遍历
             return uncompressedIterator();
 
         // for a normal iterator, we cannot ensure that the underlying compression stream is closed,
@@ -548,6 +549,7 @@ public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRe
             this.logAppendTime = timestampType() == TimestampType.LOG_APPEND_TIME ? maxTimestamp() : null;
             this.baseOffset = baseOffset();
             this.firstTimestamp = firstTimestamp();
+            // 幂等性相关
             this.baseSequence = baseSequence();
             int numRecords = count();
             if (numRecords < 0)

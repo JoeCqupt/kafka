@@ -322,6 +322,7 @@ public class DefaultRecord implements Record {
             int recordStart = buffer.position();
             byte attributes = buffer.get();
             long timestampDelta = ByteUtils.readVarlong(buffer);
+            // 这里的baseTimestamp其实是指RecordBatch里的firstTimestamp
             long timestamp = baseTimestamp + timestampDelta;
             if (logAppendTime != null)
                 timestamp = logAppendTime;
