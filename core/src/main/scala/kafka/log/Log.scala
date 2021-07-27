@@ -753,6 +753,7 @@ class Log(@volatile var dir: File,
 
         // now that we have valid records, offsets assigned, and timestamps updated, we need to
         // validate the idempotent/transactional state of the producers and collect some metadata
+        // TODO 分析校验 生产幂等性&事务相关
         val (updatedProducers, completedTxns, maybeDuplicate) = analyzeAndValidateProducerState(validRecords, isFromClient)
         maybeDuplicate.foreach { duplicate =>
           appendInfo.firstOffset = duplicate.firstOffset
@@ -865,11 +866,15 @@ class Log(@volatile var dir: File,
     val updatedProducers = mutable.Map.empty[Long, ProducerAppendInfo]
     val completedTxns = ListBuffer.empty[CompletedTxn]
     for (batch <- records.batches.asScala if batch.hasProducerId) {
+      // 遍历有producerId的batch
+
+      // 获取这个producerId 上一次写入的信息entry
       val maybeLastEntry = producerStateManager.lastEntry(batch.producerId)
 
       // if this is a client produce request, there will be up to 5 batches which could have been duplicated.
       // If we find a duplicate, we return the metadata of the appended batch to the client.
       if (isFromClient) {
+        // 通过producerEpoch 和 sequence 判断是否消息有重复/幂等
         maybeLastEntry.flatMap(_.findDuplicateBatch(batch)).foreach { duplicate =>
           return (updatedProducers, completedTxns.toList, Some(duplicate))
         }
@@ -1323,8 +1328,10 @@ class Log(@volatile var dir: File,
    * @return The currently active segment after (perhaps) rolling to a new segment
    */
   private def maybeRoll(messagesSize: Int, maxTimestampInMessages: Long, maxOffsetInMessages: Long): LogSegment = {
+    // 当前正在使用的segment
     val segment = activeSegment
     val now = time.milliseconds
+    // 判断是否需要滚动下一个segment TODO
     if (segment.shouldRoll(messagesSize, maxTimestampInMessages, maxOffsetInMessages, now)) {
       debug(s"Rolling new log segment (log_size = ${segment.size}/${config.segmentSize}}, " +
           s"offset_index_size = ${segment.offsetIndex.entries}/${segment.offsetIndex.maxEntries}, " +
