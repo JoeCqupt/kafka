@@ -203,11 +203,13 @@ private[log] class ProducerAppendInfo(val producerId: Long,
 
       case ValidationType.Full =>
         checkProducerEpoch(producerEpoch)
+        // TODO checkSequence
         checkSequence(producerEpoch, firstSeq)
     }
   }
 
   private def checkProducerEpoch(producerEpoch: Short): Unit = {
+    // 因为updatedEntry.producerEpoch 保存的是上一次的epoch，所以当前的epoch至少是大于等于上一次的epoch的
     if (producerEpoch < updatedEntry.producerEpoch) {
       throw new ProducerFencedException(s"Producer's epoch is no longer valid. There is probably another producer " +
         s"with a newer epoch. $producerEpoch (request epoch), ${updatedEntry.producerEpoch} (server epoch)")
@@ -215,6 +217,7 @@ private[log] class ProducerAppendInfo(val producerId: Long,
   }
 
   private def checkSequence(producerEpoch: Short, appendFirstSeq: Int): Unit = {
+    // 如果和上次的epoch不一样
     if (producerEpoch != updatedEntry.producerEpoch) {
       if (appendFirstSeq != 0) {
         if (updatedEntry.producerEpoch != RecordBatch.NO_PRODUCER_EPOCH) {
