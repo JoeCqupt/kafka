@@ -97,6 +97,7 @@ abstract class AbstractFetcherThread(name: String,
   private def states() = partitionStates.partitionStates.asScala.map { state => state.topicPartition -> state.value }
 
   override def doWork() {
+    // Fetch工作线程
     maybeTruncate()
     val fetchRequest = inLock(partitionMapLock) {
       val ResultWithPartitions(fetchRequest, partitionsWithError) = buildFetchRequest(states)

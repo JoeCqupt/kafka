@@ -774,7 +774,7 @@ class Log(@volatile var dir: File,
           messageOffset = appendInfo.firstOffset,
           segmentBaseOffset = segment.baseOffset,
           relativePositionInSegment = segment.size)
-
+        // 写入segment
         segment.append(firstOffset = appendInfo.firstOffset,
           largestOffset = appendInfo.lastOffset,
           largestTimestamp = appendInfo.maxTimestamp,
@@ -808,7 +808,7 @@ class Log(@volatile var dir: File,
           s"first offset: ${appendInfo.firstOffset}, " +
           s"next offset: ${nextOffsetMetadata.messageOffset}, " +
           s"and messages: $validRecords")
-
+        // 根据 flush.messages 判断是否需要刷
         if (unflushedMessages >= config.flushInterval)
           flush()
 
@@ -1333,7 +1333,7 @@ class Log(@volatile var dir: File,
     // 当前正在使用的segment
     val segment = activeSegment
     val now = time.milliseconds
-    // 判断是否需要滚动下一个segment TODO
+    // 判断是否需要滚动下一个segment
     if (segment.shouldRoll(messagesSize, maxTimestampInMessages, maxOffsetInMessages, now)) {
       debug(s"Rolling new log segment (log_size = ${segment.size}/${config.segmentSize}}, " +
           s"offset_index_size = ${segment.offsetIndex.entries}/${segment.offsetIndex.maxEntries}, " +
@@ -1349,6 +1349,7 @@ class Log(@volatile var dir: File,
         base offset was too low to contain the next message.  This edge case is possible when a replica is recovering a
         highly compacted topic from scratch.
        */
+      // TODO
       roll(Some(maxOffsetInMessages - Integer.MAX_VALUE))
     } else {
       segment

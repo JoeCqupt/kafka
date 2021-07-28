@@ -130,9 +130,10 @@ class LogSegment private[log] (val log: FileRecords,
           .format(records.sizeInBytes, firstOffset, log.sizeInBytes(), largestTimestamp, shallowOffsetOfMaxTimestamp))
       val physicalPosition = log.sizeInBytes()
       if (physicalPosition == 0)
-        rollingBasedTimestamp = Some(largestTimestamp)
+        rollingBasedTimestamp = Some(largestTimestamp) //设置segment第一个batch的timestamp，为后续的roll做基础
       // append the messages
       require(canConvertToRelativeOffset(largestOffset), "largest offset in message set can not be safely converted to relative offset.")
+      // FIXME: mark point segment真正写入记录操作
       val appendedBytes = log.append(records)
       trace(s"Appended $appendedBytes to ${log.file()} at offset $firstOffset")
       // Update the in memory max timestamp and corresponding offset.
@@ -141,6 +142,7 @@ class LogSegment private[log] (val log: FileRecords,
         offsetOfMaxTimestamp = shallowOffsetOfMaxTimestamp
       }
       // append an entry to the index (if needed)
+      // TODO 更新index
       if(bytesSinceLastIndexEntry > indexIntervalBytes) {
         offsetIndex.append(firstOffset, physicalPosition)
         timeIndex.maybeAppend(maxTimestampSoFar, offsetOfMaxTimestamp)
@@ -291,6 +293,7 @@ class LogSegment private[log] (val log: FileRecords,
         }
         validBytes += batch.sizeInBytes()
 
+        // 如果是高版本
         if (batch.magic >= RecordBatch.MAGIC_VALUE_V2) {
           leaderEpochCache.foreach { cache =>
             if (batch.partitionLeaderEpoch > cache.latestEpoch) // this is to avoid unnecessary warning in cache.assign()
@@ -448,7 +451,7 @@ class LogSegment private[log] (val log: FileRecords,
     }
     rollingBasedTimestamp match {
       case Some(t) if t >= 0 => messageTimestamp - t
-      case _ => now - created
+      case _ => now - created // 如果消息batch不带时间戳的话，使用now和segment的创建时间戳取值
     }
   }
 
@@ -554,17 +557,17 @@ object LogSegment {
 
   def open(dir: File, baseOffset: Long, config: LogConfig, time: Time, fileAlreadyExists: Boolean = false,
            initFileSize: Int = 0, preallocate: Boolean = false, fileSuffix: String = ""): LogSegment = {
-    val maxIndexSize = config.maxIndexSize
+    val maxIndexSize = config.maxIndexSize // segment index索引文件大小
     new LogSegment(
       FileRecords.open(Log.logFile(dir, baseOffset, fileSuffix), fileAlreadyExists, initFileSize, preallocate),
       new OffsetIndex(Log.offsetIndexFile(dir, baseOffset, fileSuffix), baseOffset = baseOffset, maxIndexSize = maxIndexSize),
       new TimeIndex(Log.timeIndexFile(dir, baseOffset, fileSuffix), baseOffset = baseOffset, maxIndexSize = maxIndexSize),
       new TransactionIndex(baseOffset, Log.transactionIndexFile(dir, baseOffset, fileSuffix)),
       baseOffset,
-      indexIntervalBytes = config.indexInterval,
-      rollJitterMs = config.randomSegmentJitter,
-      maxSegmentMs = config.segmentMs,
-      maxSegmentBytes = config.segmentSize,
+      indexIntervalBytes = config.indexInterval, // 每隔多少bytes写一次index文件索引
+      rollJitterMs = config.randomSegmentJitter, // 为了避免大量segment同时roll，所以需要设置一个随机的抖动
+      maxSegmentMs = config.segmentMs, // segment 强制滚动时间
+      maxSegmentBytes = config.segmentSize,// segment 大小限制
       time)
   }
 

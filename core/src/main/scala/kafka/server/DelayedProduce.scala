@@ -81,6 +81,8 @@ class DelayedProduce(delayMs: Long,
    *   B.1 - If there was a local error thrown while checking if at least requiredAcks
    *         replicas have caught up to this operation: set an error in response
    *   B.2 - Otherwise, set the response with no error.
+   *
+   *   等待Follower 同步主节点的消息
    */
   override def tryComplete(): Boolean = {
     // check for each partition if it still has pending acks

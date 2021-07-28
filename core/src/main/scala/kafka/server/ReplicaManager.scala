@@ -472,9 +472,10 @@ class ReplicaManager(val config: KafkaConfig,
                   result.info.lastOffset + 1, // required offset
                   new PartitionResponse(result.error, result.info.firstOffset, result.info.logAppendTime, result.info.logStartOffset)) // response status
       }
-
+      // 这个回调方法中会做一些统计相关的工作
       processingStatsCallback(localProduceResults.mapValues(_.info.recordsProcessingStats))
 
+      // 判断是否需要等待Follower fetch数据
       if (delayedProduceRequestRequired(requiredAcks, entriesPerPartition, localProduceResults)) {
         // create delayed produce operation
         val produceMetadata = ProduceMetadata(requiredAcks, produceStatus)

@@ -61,6 +61,7 @@ class TimeIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writable:
     s" entries = ${_entries}, lastOffset = ${_lastEntry}, file position = ${mmap.position()}")
 
   // We override the full check to reserve the last time index entry slot for the on roll call.
+  // 重写这个方法，为 roll call 预留最后一个时间戳索引位置
   override def isFull: Boolean = entries >= maxEntries - 1
 
   private def timestamp(buffer: ByteBuffer, n: Int): Long = buffer.getLong(n * entrySize)

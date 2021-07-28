@@ -42,6 +42,8 @@ import scala.collection.mutable.ListBuffer
  * forceComplete().
  *
  * A subclass of DelayedOperation needs to provide an implementation of both onComplete() and tryComplete().
+ *
+ * DelayedOperation 延迟操作基类
  */
 abstract class DelayedOperation(override val delayMs: Long,
     lockOpt: Option[Lock] = None) extends TimerTask with Logging {

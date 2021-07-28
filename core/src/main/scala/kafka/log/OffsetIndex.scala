@@ -135,6 +135,8 @@ class OffsetIndex(_file: File, baseOffset: Long, maxIndexSize: Int = -1, writabl
 
   /**
    * Append an entry for the given offset/location pair to the index. This entry must have a larger offset than all subsequent entries.
+   *
+   * @param position是指segment中的位置
    */
   def append(offset: Long, position: Int) {
     inLock(lock) {
