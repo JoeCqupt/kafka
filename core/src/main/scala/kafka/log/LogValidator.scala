@@ -195,25 +195,27 @@ private[kafka] object LogValidator extends Logging {
         validateRecord(batch, record, now, timestampType, timestampDiffMaxMs, compactedTopic)
         // 获取下一个
         val offset = offsetCounter.getAndIncrement()
-        // 一个recordBatch内最大值
+        // 一个recordBatch内 最大的timestamp 和 offset
         if (batch.magic > RecordBatch.MAGIC_VALUE_V0 && record.timestamp > maxBatchTimestamp) {
           maxBatchTimestamp = record.timestamp
           offsetOfMaxBatchTimestamp = offset
         }
       }
 
-      // 所有recordBatch内最大值
+      // 所有recordBatch内 最大的timestamp 和 offset
       if (batch.magic > RecordBatch.MAGIC_VALUE_V0 && maxBatchTimestamp > maxTimestamp) {
         maxTimestamp = maxBatchTimestamp
         offsetOfMaxTimestamp = offsetOfMaxBatchTimestamp
       }
 
       // 设置最后的offset
+      // 其实底层写入的是baseOffset
       batch.setLastOffset(offsetCounter.value - 1)
 
       if (batch.magic >= RecordBatch.MAGIC_VALUE_V2)
         batch.setPartitionLeaderEpoch(partitionLeaderEpoch)
 
+      // 设置batch的maxTimestamp
       if (batch.magic > RecordBatch.MAGIC_VALUE_V0) {
         if (timestampType == TimestampType.LOG_APPEND_TIME)
           batch.setMaxTimestamp(TimestampType.LOG_APPEND_TIME, now)
@@ -232,7 +234,9 @@ private[kafka] object LogValidator extends Logging {
 
     ValidationAndOffsetAssignResult(
       validatedRecords = records,
+      // 所有batch中最大的timestamp
       maxTimestamp = maxTimestamp,
+      // 所有batch中最大的offset
       shallowOffsetOfMaxTimestamp = offsetOfMaxTimestamp,
       messageSizeMaybeChanged = false,
       recordsProcessingStats = RecordsProcessingStats.EMPTY)

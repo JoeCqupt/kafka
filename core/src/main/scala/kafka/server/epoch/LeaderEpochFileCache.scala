@@ -68,6 +68,7 @@ class LeaderEpochFileCache(topicPartition: TopicPartition,
    * Remove any entries which violate monotonicity following the insertion of an assigned epoch.
    */
   private def truncateAndAppend(entryToAppend: EpochEntry): Unit = {
+    // 校验消息上的epoch 和 baseOffset 的有效性
     validateAndMaybeWarn(entryToAppend)
 
     val (retainedEpochs, removedEpochs) = epochs.partition { entry =>

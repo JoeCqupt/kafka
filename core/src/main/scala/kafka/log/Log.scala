@@ -670,13 +670,14 @@ class Log(@volatile var dir: File,
       var validRecords = trimInvalidBytes(records, appendInfo)
 
       // they are valid, insert them in the log
-      // 这里加锁
+      // 这里加锁控制并发
       lock synchronized {
         // 检查log文件是否是打开的
         checkIfMemoryMappedBufferClosed()
         if (assignOffsets) {
           // assign offsets to the message set
           val offset = new LongRef(nextOffsetMetadata.messageOffset)
+          // 设置firstOffset
           appendInfo.firstOffset = offset.value
           val now = time.milliseconds
           val validateAndOffsetAssignResult = try {
@@ -746,11 +747,12 @@ class Log(@volatile var dir: File,
         }
 
         // check messages set size may be exceed config.segmentSize
+        // segment.bytes 配置检查
         if (validRecords.sizeInBytes > config.segmentSize) {
           throw new RecordBatchTooLargeException("Message batch size is %d bytes which exceeds the maximum configured segment size of %d."
             .format(validRecords.sizeInBytes, config.segmentSize))
         }
-
+        // TODO: reading check point
         // now that we have valid records, offsets assigned, and timestamps updated, we need to
         // validate the idempotent/transactional state of the producers and collect some metadata
         val (updatedProducers, completedTxns, maybeDuplicate) = analyzeAndValidateProducerState(validRecords, isFromClient)
