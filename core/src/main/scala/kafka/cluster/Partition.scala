@@ -445,6 +445,7 @@ class Partition(val topic: String,
         // keep the current immutable replica list reference
         val curInSyncReplicas = inSyncReplicas
 
+        // 统计有几个副本已经拉到最新的数据 FIXME how?
         def numAcks = curInSyncReplicas.count { r =>
           if (!r.isLocal)
             if (r.logEndOffset.messageOffset >= requiredOffset) {
@@ -647,7 +648,7 @@ class Partition(val topic: String,
           // Log 添加数据的入口
           val info = log.appendAsLeader(records, leaderEpoch = this.leaderEpoch, isFromClient)
           // probably unblock some follower fetch requests since log end offset has been updated
-          // 等待follower拉取新增的消息并且变更HW
+          // 尝试一下：是否Follower fetch到最新的消息
           replicaManager.tryCompleteDelayedFetch(TopicPartitionOperationKey(this.topic, this.partitionId))
           // we may need to increment high watermark since ISR could be down to 1
           (info, maybeIncrementLeaderHW(leaderReplica))

@@ -95,6 +95,7 @@ class DelayedProduce(delayMs: Long,
             if (partition eq ReplicaManager.OfflinePartition)
               (false, Errors.KAFKA_STORAGE_ERROR)
             else
+               // 检查Follower是否追上了高水位
               partition.checkEnoughReplicasReachOffset(status.requiredOffset)
           case None =>
             // Case A
