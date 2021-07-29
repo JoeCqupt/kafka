@@ -196,6 +196,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
       val canStartup = isStartingUp.compareAndSet(false, true)
       if (canStartup) {
+        // 本机 broker state状态
         brokerState.newState(Starting)
 
         /* setup zookeeper */
@@ -213,6 +214,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
         // initialize dynamic broker configs from ZooKeeper. Any updates made after this will be
         // applied after DynamicConfigManager starts.
+        // TODO 动态配置初始化
         config.dynamicConfig.initialize(zkClient)
 
         /* start scheduler */
@@ -220,6 +222,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         kafkaScheduler.startup()
 
         /* create and configure metrics */
+        // TODO metics采集
         val reporters = new util.ArrayList[MetricsReporter]
         reporters.add(new JmxReporter(jmxPrefix))
         val metricConfig = KafkaServer.metricConfig(config)
@@ -228,15 +231,18 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         /* register broker metrics */
         _brokerTopicStats = new BrokerTopicStats
 
+        // 配额管理
         quotaManagers = QuotaFactory.instantiate(config, metrics, time, threadNamePrefix.getOrElse(""))
         notifyClusterListeners(kafkaMetricsReporters ++ metrics.reporters.asScala)
 
         logDirFailureChannel = new LogDirFailureChannel(config.logDirs.size)
 
         /* start log manager */
+        // 日志管理
         logManager = LogManager(config, initialOfflineDirs, zkClient, brokerState, kafkaScheduler, time, brokerTopicStats, logDirFailureChannel)
+        // TODO 启动日志处理相关的线程： flush/checkpoint/cleaner....
         logManager.startup()
-
+        // metadata缓存
         metadataCache = new MetadataCache(config.brokerId)
         // Enable delegation token cache for all SCRAM mechanisms to simplify dynamic update.
         // This keeps the cache up-to-date if new SCRAM mechanisms are enabled dynamically.
