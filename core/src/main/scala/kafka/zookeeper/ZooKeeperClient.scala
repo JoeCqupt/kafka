@@ -415,6 +415,9 @@ class ZooKeeperClient(connectString: String,
   }
 }
 
+/**
+ * zkClient session 监听器
+ */
 trait StateChangeHandler {
   val name: String
   def beforeInitializingSession(): Unit = {}
@@ -422,6 +425,9 @@ trait StateChangeHandler {
   def onAuthFailure(): Unit = {}
 }
 
+/**
+ * zk path变更监听器; 底层是委托事件管理器(ControllerEventManager)完成对应的操作
+ */
 trait ZNodeChangeHandler {
   val path: String
   def handleCreation(): Unit = {}
@@ -429,6 +435,9 @@ trait ZNodeChangeHandler {
   def handleDataChange(): Unit = {}
 }
 
+/**
+ * zk path child变更监听器; 底层是委托事件管理器(ControllerEventManager)完成对应的操作
+ */
 trait ZNodeChildChangeHandler {
   val path: String
   def handleChildChange(): Unit = {}
