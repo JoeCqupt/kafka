@@ -1513,6 +1513,7 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
       val getDataRequest = GetDataRequest(path)
       val getDataResponse = retryRequestUntilConnected(getDataRequest)
       getDataResponse.resultCode match {
+        // 判断该path的owner是否是当前session
         case Code.OK if getDataResponse.stat.getEphemeralOwner != zooKeeperClient.sessionId =>
           error(s"Error while creating ephemeral at $path, node already exists and owner " +
             s"'${getDataResponse.stat.getEphemeralOwner}' does not match current session '${zooKeeperClient.sessionId}'")
@@ -1520,7 +1521,7 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
         case code@ Code.OK => code
         case Code.NONODE =>
           info(s"The ephemeral node at $path went away while reading it, attempting create() again")
-          create()
+          create() // 递归
         case code =>
           error(s"Error while creating ephemeral at $path as it already exists and error getting the node data due to $code")
           code

@@ -152,6 +152,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
    * elector
    */
   def startup() = {
+    // 注册zkClient session 监听器
     zkClient.registerStateChangeHandler(new StateChangeHandler {
       override val name: String = StateChangeHandlers.ControllerHandler
       override def afterInitializingSession(): Unit = {
@@ -215,15 +216,18 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
    */
   private def onControllerFailover() {
     info("Reading controller epoch from ZooKeeper")
-    readControllerEpochFromZooKeeper()
+    readControllerEpochFromZooKeeper() // 读取path: controller_epoch
     info("Incrementing controller epoch in ZooKeeper")
-    incrementControllerEpoch()
+    incrementControllerEpoch() //  controller_epoch + 1
     info("Registering handlers")
 
     // before reading source of truth from zookeeper, register the listeners to get broker/topic callbacks
+    // 注册NodeChildChange & NodeChange监听器
+    // 1. /brokers/ids 2. /brokers/topics 3. /admin/deleted_topics 4. /log_dir_event_notification 5./isr_change_notification
     val childChangeHandlers = Seq(brokerChangeHandler, topicChangeHandler, topicDeletionHandler, logDirEventNotificationHandler,
       isrChangeNotificationHandler)
     childChangeHandlers.foreach(zkClient.registerZNodeChildChangeHandler)
+    // TODO check-point 2021-08-09
     val nodeChangeHandlers = Seq(preferredReplicaElectionHandler, partitionReassignmentHandler)
     nodeChangeHandlers.foreach(zkClient.registerZNodeChangeHandlerAndCheckExistence)
 
@@ -614,6 +618,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
 
   private def incrementControllerEpoch(): Unit = {
     val newControllerEpoch = controllerContext.epoch + 1
+    // 指定zk path stat中的version版本号，保证没有其他人更改过这个path
     val setDataResponse = zkClient.setControllerEpochRaw(newControllerEpoch, controllerContext.epochZkVersion)
     setDataResponse.resultCode match {
       case Code.OK =>
@@ -1134,6 +1139,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
     def state = ControllerState.ControllerChange
 
     override def process(): Unit = {
+      // 注册path /controller 的监听器
       zkClient.registerZNodeChangeHandlerAndCheckExistence(controllerChangeHandler)
       elect()
     }
@@ -1213,7 +1219,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
 
       case e2: Throwable =>
         error(s"Error while electing or becoming controller on broker ${config.brokerId}", e2)
-        triggerControllerMove()
+        triggerControllerMove() // TODO: @joe 竞选Controller失败，触发Controller卸任流程
     }
   }
 

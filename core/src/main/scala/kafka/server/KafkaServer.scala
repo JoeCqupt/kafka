@@ -196,9 +196,11 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
       val canStartup = isStartingUp.compareAndSet(false, true)
       if (canStartup) {
+        // 本机 broker state状态
         brokerState.newState(Starting)
 
         /* setup zookeeper */
+        // TODO @joe kafka zkClient封装
         initZkClient(time)
 
         /* Get or create cluster_id */
@@ -213,6 +215,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
 
         // initialize dynamic broker configs from ZooKeeper. Any updates made after this will be
         // applied after DynamicConfigManager starts.
+        // TODO @joe 动态配置初始化
         config.dynamicConfig.initialize(zkClient)
 
         /* start scheduler */
@@ -220,6 +223,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         kafkaScheduler.startup()
 
         /* create and configure metrics */
+        // TODO @joe metics采集
         val reporters = new util.ArrayList[MetricsReporter]
         reporters.add(new JmxReporter(jmxPrefix))
         val metricConfig = KafkaServer.metricConfig(config)
@@ -228,15 +232,17 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
         /* register broker metrics */
         _brokerTopicStats = new BrokerTopicStats
 
+        // TODO @joe  配额管理
         quotaManagers = QuotaFactory.instantiate(config, metrics, time, threadNamePrefix.getOrElse(""))
         notifyClusterListeners(kafkaMetricsReporters ++ metrics.reporters.asScala)
 
         logDirFailureChannel = new LogDirFailureChannel(config.logDirs.size)
 
         /* start log manager */
+        // TODO @joe 日志管理
         logManager = LogManager(config, initialOfflineDirs, zkClient, brokerState, kafkaScheduler, time, brokerTopicStats, logDirFailureChannel)
         logManager.startup()
-
+        // TODO @joe 集群元数据缓存
         metadataCache = new MetadataCache(config.brokerId)
         // Enable delegation token cache for all SCRAM mechanisms to simplify dynamic update.
         // This keeps the cache up-to-date if new SCRAM mechanisms are enabled dynamically.
