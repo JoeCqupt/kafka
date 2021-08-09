@@ -61,11 +61,12 @@ class ControllerChannelManager(controllerContext: ControllerContext, config: Kaf
       }
     }
   )
-
+  // 初始化controller与各个Broker节点的连接信息
   controllerContext.liveBrokers.foreach(addNewBroker)
 
   def startup() = {
     brokerLock synchronized {
+      // 开启Controller与各个Broker之间的连接线程
       brokerStateInfo.foreach(brokerState => startRequestSendThread(brokerState._1))
     }
   }
@@ -108,6 +109,7 @@ class ControllerChannelManager(controllerContext: ControllerContext, config: Kaf
   private def addNewBroker(broker: Broker) {
     val messageQueue = new LinkedBlockingQueue[QueueItem]
     debug(s"Controller ${config.brokerId} trying to connect to broker ${broker.id}")
+    // 获取inter监听端口+地址信息
     val brokerNode = broker.node(config.interBrokerListenerName)
     val logContext = new LogContext(s"[Controller id=${config.brokerId}, targetBrokerId=${brokerNode.idString}] ")
     val networkClient = {
@@ -244,6 +246,7 @@ class RequestSendThread(val controllerId: Int,
       if (clientResponse != null) {
         val requestHeader = clientResponse.requestHeader
         val api = requestHeader.apiKey
+        // 表明: controller节点只会与各个Broker节点交流这些信息  TODO @joe
         if (api != ApiKeys.LEADER_AND_ISR && api != ApiKeys.STOP_REPLICA && api != ApiKeys.UPDATE_METADATA)
           throw new KafkaException(s"Unexpected apiKey received: $apiKey")
 

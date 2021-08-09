@@ -238,6 +238,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
     info("Initializing controller context")
     initializeControllerContext()
     info("Fetching topic deletions in progress")
+    // TODO checkpoint 2021-08-10 @joe
     val (topicsToBeDeleted, topicsIneligibleForDeletion) = fetchTopicDeletionsInProgress()
     info("Initializing topic deletion manager")
     topicDeletionManager.init(topicsToBeDeleted, topicsIneligibleForDeletion)
@@ -657,9 +658,11 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
     // register broker modifications handlers
     registerBrokerModificationsHandler(controllerContext.liveBrokers.map(_.id))
     // update the leader and isr cache for all existing partitions from Zookeeper
+    // path: /brokers/topics/${topicName}/partitions/${partitionNum}/state
     updateLeaderAndIsrCache()
     // start the channel manager
     startChannelManager()
+    // path: /admin/reassign_partitions 获取正在重分配的partition信息
     initializePartitionReassignment()
     info(s"Currently active brokers in the cluster: ${controllerContext.liveBrokerIds}")
     info(s"Currently shutting brokers in the cluster: ${controllerContext.shuttingDownBrokerIds}")
