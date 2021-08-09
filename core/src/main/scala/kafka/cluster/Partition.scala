@@ -445,7 +445,8 @@ class Partition(val topic: String,
         // keep the current immutable replica list reference
         val curInSyncReplicas = inSyncReplicas
 
-        // 统计有几个副本已经拉到最新的数据 FIXME how?
+        // 统计有几个副本已经拉到最新的数据
+        // 副本的LEO是：follower的fetch线程每次向leader fetch的时候，LEO设为上一个fetch的拉取offset
         def numAcks = curInSyncReplicas.count { r =>
           if (!r.isLocal)
             if (r.logEndOffset.messageOffset >= requiredOffset) {

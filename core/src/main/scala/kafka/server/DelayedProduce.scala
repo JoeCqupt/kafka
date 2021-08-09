@@ -82,7 +82,7 @@ class DelayedProduce(delayMs: Long,
    *         replicas have caught up to this operation: set an error in response
    *   B.2 - Otherwise, set the response with no error.
    *
-   *   等待Follower 同步主节点的消息
+   *   等待Follower fetch主分片的消息
    */
   override def tryComplete(): Boolean = {
     // check for each partition if it still has pending acks
