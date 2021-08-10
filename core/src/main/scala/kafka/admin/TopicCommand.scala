@@ -37,6 +37,9 @@ import org.apache.kafka.common.TopicPartition
 import scala.collection.JavaConverters._
 import scala.collection._
 
+/**
+ * kafka 脚本操作topic
+ */
 object TopicCommand extends Logging {
 
   def main(args: Array[String]): Unit = {

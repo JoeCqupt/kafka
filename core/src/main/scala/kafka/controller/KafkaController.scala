@@ -239,7 +239,6 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
     info("Initializing controller context")
     initializeControllerContext()
     info("Fetching topic deletions in progress")
-    // TODO checkpoint 2021-08-10 @joe
     val (topicsToBeDeleted, topicsIneligibleForDeletion) = fetchTopicDeletionsInProgress()
     info("Initializing topic deletion manager")
     topicDeletionManager.init(topicsToBeDeleted, topicsIneligibleForDeletion)
@@ -252,14 +251,19 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
     info("Sending update metadata request")
     sendUpdateMetadataRequest(controllerContext.liveOrShuttingDownBrokerIds.toSeq)
 
-    // 开启状态机
+    // 副本状态机，主要管理partition副本的状态扭转
     replicaStateMachine.startup()
+    // partition分片状态机，主要管理partition的状态扭转
     partitionStateMachine.startup()
 
     info(s"Ready to serve as the new controller with epoch $epoch")
+    // TODO @joe ?
     maybeTriggerPartitionReassignment(controllerContext.partitionsBeingReassigned.keySet)
+    // 继续主题删除任务
     topicDeletionManager.tryTopicDeletion()
+    // 找出需要preferred replica elect 的partitions
     val pendingPreferredReplicaElections = fetchPendingPreferredReplicaElections()
+    // 触发这一部分的partition的preferred replica elect
     onPreferredReplicaElection(pendingPreferredReplicaElections)
     info("Starting the controller scheduler")
     kafkaScheduler.startup()
@@ -678,6 +682,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
   }
 
   private def fetchPendingPreferredReplicaElections(): Set[TopicPartition] = {
+    // path: /admin/preferred_replica_election
     val partitionsUndergoingPreferredReplicaElection = zkClient.getPreferredReplicaElection
     // check if they are already completed or topic was deleted
     val partitionsThatCompletedPreferredReplicaElection = partitionsUndergoingPreferredReplicaElection.filter { partition =>
