@@ -227,10 +227,11 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
     val childChangeHandlers = Seq(brokerChangeHandler, topicChangeHandler, topicDeletionHandler, logDirEventNotificationHandler,
       isrChangeNotificationHandler)
     childChangeHandlers.foreach(zkClient.registerZNodeChildChangeHandler)
-    // TODO check-point 2021-08-09
+    // 1. /admin/preferred_replica_election 2. /admin/reassign_partitions
     val nodeChangeHandlers = Seq(preferredReplicaElectionHandler, partitionReassignmentHandler)
     nodeChangeHandlers.foreach(zkClient.registerZNodeChangeHandlerAndCheckExistence)
 
+    // delete notifications
     info("Deleting log dir event notifications")
     zkClient.deleteLogDirEventNotifications()
     info("Deleting isr change notifications")
@@ -650,11 +651,16 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
     // update controller cache with delete topic information
     controllerContext.liveBrokers = zkClient.getAllBrokersInCluster.toSet
     controllerContext.allTopics = zkClient.getAllTopicsInCluster.toSet
+    // 注册每一个主题的partition modification handler
+    // path: /brokers/topics/${topicName}
     registerPartitionModificationsHandlers(controllerContext.allTopics.toSeq)
+    // 获取每一个topic的副本分配信息
+    // path:  /brokers/topics/${topicName}
     controllerContext.partitionReplicaAssignment = mutable.Map.empty ++ zkClient.getReplicaAssignmentForTopics(controllerContext.allTopics.toSet)
     controllerContext.partitionLeadershipInfo = new mutable.HashMap[TopicPartition, LeaderIsrAndControllerEpoch]
     controllerContext.shuttingDownBrokerIds = mutable.Set.empty[Int]
     // register broker modifications handlers
+    // path: /brokers/ids/${brokerId}
     registerBrokerModificationsHandler(controllerContext.liveBrokers.map(_.id))
     // update the leader and isr cache for all existing partitions from Zookeeper
     updateLeaderAndIsrCache()
