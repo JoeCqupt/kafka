@@ -62,9 +62,10 @@ object TopicCommand extends Logging {
 
     var exitCode = 0
     try {
-      if(opts.options.has(opts.createOpt))
+      if(opts.options.has(opts.createOpt)) {
+        // 创建主题
         createTopic(zkClient, opts)
-      else if(opts.options.has(opts.alterOpt))
+      } else if(opts.options.has(opts.alterOpt))
         alterTopic(zkClient, opts)
       else if(opts.options.has(opts.listOpt))
         listTopics(zkClient, opts)
