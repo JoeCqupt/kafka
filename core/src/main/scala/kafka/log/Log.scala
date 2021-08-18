@@ -1215,6 +1215,7 @@ class Log(@volatile var dir: File,
           checkIfMemoryMappedBufferClosed()
           // remove the segments for lookups
           deletable.foreach(deleteSegment)
+          // 修改Log的logStartOffset信息
           maybeIncrementLogStartOffset(segments.firstEntry.getValue.baseOffset)
         }
       }
@@ -1265,11 +1266,13 @@ class Log(@volatile var dir: File,
    * or because the log size is > retentionSize
    */
   def deleteOldSegments(): Int = {
+    // 检查清除策略是不是有delete
     if (!config.delete) return 0
     deleteRetentionMsBreachedSegments() + deleteRetentionSizeBreachedSegments() + deleteLogStartOffsetBreachedSegments()
   }
 
   private def deleteRetentionMsBreachedSegments(): Int = {
+    // 检查日志保留时间
     if (config.retentionMs < 0) return 0
     val startMs = time.milliseconds
     deleteOldSegments((segment, _) => startMs - segment.largestTimestamp > config.retentionMs,

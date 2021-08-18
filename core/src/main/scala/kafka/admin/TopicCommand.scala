@@ -38,7 +38,7 @@ import scala.collection.JavaConverters._
 import scala.collection._
 
 /**
- * kafka 脚本操作topic
+ * kafka topic相关脚本操作
  */
 object TopicCommand extends Logging {
 
@@ -111,6 +111,7 @@ object TopicCommand extends Logging {
         val replicas = opts.options.valueOf(opts.replicationFactorOpt).intValue
         val rackAwareMode = if (opts.options.has(opts.disableRackAware)) RackAwareMode.Disabled
                             else RackAwareMode.Enforced
+        // 通过命令行创建主题
         adminZkClient.createTopic(topic, partitions, replicas, configs, rackAwareMode)
       }
       println("Created topic \"%s\".".format(topic))
@@ -301,6 +302,7 @@ object TopicCommand extends Logging {
   }
 
   class TopicCommandOptions(args: Array[String]) {
+    // TODO jopt的用法
     val parser = new OptionParser(false)
     val zkConnectOpt = parser.accepts("zookeeper", "REQUIRED: The connection string for the zookeeper connection in the form host:port. " +
                                       "Multiple hosts can be given to allow fail-over.")
