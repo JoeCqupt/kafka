@@ -1298,10 +1298,12 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
       val deletedTopics = controllerContext.allTopics -- topics
       controllerContext.allTopics = topics
 
+      // 注册partition分配结果信息变更handler； path：/brokers/topics/$topic
       registerPartitionModificationsHandlers(newTopics.toSeq)
       val addedPartitionReplicaAssignment = zkClient.getReplicaAssignmentForTopics(newTopics)
       controllerContext.partitionReplicaAssignment = controllerContext.partitionReplicaAssignment.filter(p =>
         !deletedTopics.contains(p._1.topic))
+      // 添加新增的partition分配规则
       controllerContext.partitionReplicaAssignment ++= addedPartitionReplicaAssignment
       info(s"New topics: [$newTopics], deleted topics: [$deletedTopics], new partition replica assignment " +
         s"[$addedPartitionReplicaAssignment]")

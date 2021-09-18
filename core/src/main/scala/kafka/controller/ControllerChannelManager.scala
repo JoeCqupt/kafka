@@ -377,6 +377,7 @@ class ControllerBrokerRequestBatch(controller: KafkaController, stateChangeLogge
             leaderIsrAndControllerEpoch.leaderAndIsr.zkVersion,
             replicas.map(Integer.valueOf).asJava,
             offlineReplicas.map(Integer.valueOf).asJava)
+            // 需要更新的partition TODO
           updateMetadataRequestPartitionInfoMap.put(partition, partitionStateInfo)
 
         case None =>
@@ -395,6 +396,7 @@ class ControllerBrokerRequestBatch(controller: KafkaController, stateChangeLogge
         givenPartitions -- controller.topicDeletionManager.partitionsToBeDeleted
     }
 
+    // 需要更新Metadata的Broker集合
     updateMetadataRequestBrokerSet ++= brokerIds.filter(_ >= 0)
     filteredPartitions.foreach(partition => updateMetadataRequestPartitionInfo(partition, beingDeleted = false))
     controller.topicDeletionManager.partitionsToBeDeleted.foreach(partition => updateMetadataRequestPartitionInfo(partition, beingDeleted = true))
