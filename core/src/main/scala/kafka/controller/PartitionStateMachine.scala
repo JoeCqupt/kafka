@@ -164,6 +164,7 @@ class PartitionStateMachine(config: KafkaConfig,
         val uninitializedPartitions = validPartitions.filter(partition => partitionState(partition) == NewPartition)
         val partitionsToElectLeader = validPartitions.filter(partition => partitionState(partition) == OfflinePartition || partitionState(partition) == OnlinePartition)
         if (uninitializedPartitions.nonEmpty) {
+          // 初始化新的partition
           val successfulInitializations = initializeLeaderAndIsrForPartitions(uninitializedPartitions)
           successfulInitializations.foreach { partition =>
             stateChangeLog.trace(s"Changed partition $partition from ${partitionState(partition)} to $targetState with state " +

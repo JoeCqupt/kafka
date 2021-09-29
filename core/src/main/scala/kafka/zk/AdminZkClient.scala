@@ -53,7 +53,7 @@ class AdminZkClient(zkClient: KafkaZkClient) extends Logging {
                   rackAwareMode: RackAwareMode = RackAwareMode.Enforced) {
     // 获取所有的(Broker+机架)信息
     val brokerMetadatas = getBrokerMetadatas(rackAwareMode)
-    // 副本分配结果Map[key: partition-leader-brokerId , value: List[value:replica-brokerId]]
+    // 副本分配结果Map[key: partitionId , value: List[replica-brokerId]]
     val replicaAssignment = AdminUtils.assignReplicasToBrokers(brokerMetadatas, partitions, replicationFactor)
     createOrUpdateTopicPartitionAssignmentPathInZK(topic, replicaAssignment, topicConfig)
   }
@@ -139,11 +139,11 @@ class AdminZkClient(zkClient: KafkaZkClient) extends Logging {
         }
       }
     }
-    // 校验是不是每一个partition的副本都已经被正确的分配
+    // 校验是不是每一个partition的副本分配结果是不是只有一个Seq
     if (partitionReplicaAssignment.values.map(_.size).toSet.size != 1)
       throw new InvalidReplicaAssignmentException("All partitions should have the same number of replicas")
 
-    // 检查同一个broker上有没有分配可多个副本
+    // 检查partition分配结果里面有没有重复的BrokerId
     partitionReplicaAssignment.values.foreach(reps =>
       if (reps.size != reps.toSet.size)
         throw new InvalidReplicaAssignmentException("Duplicate replica assignment found: " + partitionReplicaAssignment)

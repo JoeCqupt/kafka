@@ -656,7 +656,9 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
 
   private def initializeControllerContext() {
     // update controller cache with delete topic information
+    // 获取所有borker信息
     controllerContext.liveBrokers = zkClient.getAllBrokersInCluster.toSet
+    // 获取所有topic
     controllerContext.allTopics = zkClient.getAllTopicsInCluster.toSet
     // 注册每一个主题的partition modification handler
     // path: /brokers/topics/${topicName}
@@ -1161,6 +1163,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
 
     override def process(): Unit = {
       // 注册path /controller 的监听器
+      // 每一个节点都关注着leader的变更情况
       zkClient.registerZNodeChangeHandlerAndCheckExistence(controllerChangeHandler)
       elect()
     }
@@ -1298,6 +1301,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
       val deletedTopics = controllerContext.allTopics -- topics
       controllerContext.allTopics = topics
 
+      // 注册/brokers/topics/${topic} 路径下的
       registerPartitionModificationsHandlers(newTopics.toSeq)
       val addedPartitionReplicaAssignment = zkClient.getReplicaAssignmentForTopics(newTopics)
       controllerContext.partitionReplicaAssignment = controllerContext.partitionReplicaAssignment.filter(p =>

@@ -103,6 +103,7 @@ object TopicCommand extends Logging {
     val adminZkClient = new AdminZkClient(zkClient)
     try {
       if (opts.options.has(opts.replicaAssignmentOpt)) {
+        // 指定副本分配 TODO @joe
         val assignment = parseReplicaAssignment(opts.options.valueOf(opts.replicaAssignmentOpt))
         adminZkClient.createOrUpdateTopicPartitionAssignmentPathInZK(topic, assignment, configs, update = false)
       } else {
@@ -111,7 +112,6 @@ object TopicCommand extends Logging {
         val replicas = opts.options.valueOf(opts.replicationFactorOpt).intValue
         val rackAwareMode = if (opts.options.has(opts.disableRackAware)) RackAwareMode.Disabled
                             else RackAwareMode.Enforced
-        // 通过命令行创建主题
         adminZkClient.createTopic(topic, partitions, replicas, configs, rackAwareMode)
       }
       println("Created topic \"%s\".".format(topic))
