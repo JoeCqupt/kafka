@@ -270,6 +270,7 @@ class RequestSendThread(val controllerId: Int,
 
   private def brokerReady(): Boolean = {
     try {
+      // 如何确认连接已经ready？
       if (!NetworkClientUtils.isReady(networkClient, brokerNode, time.milliseconds())) {
         if (!NetworkClientUtils.awaitReady(networkClient, brokerNode, time, socketTimeoutMs))
           throw new SocketTimeoutException(s"Failed to connect within $socketTimeoutMs ms")
@@ -406,10 +407,11 @@ class ControllerBrokerRequestBatch(controller: KafkaController, stateChangeLogge
     try {
       val stateChangeLog = stateChangeLogger.withControllerEpoch(controllerEpoch)
 
+      //  确定协议版本
       val leaderAndIsrRequestVersion: Short =
         if (controller.config.interBrokerProtocolVersion >= KAFKA_1_0_IV0) 1
         else 0
-
+      // step1: 处理LeaderAndIsrRequest
       leaderAndIsrRequestMap.foreach { case (broker, leaderAndIsrPartitionStates) =>
         leaderAndIsrPartitionStates.foreach { case (topicPartition, state) =>
           val typeOfRequest =
