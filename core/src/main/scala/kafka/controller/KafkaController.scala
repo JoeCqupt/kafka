@@ -1072,11 +1072,14 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
       val partitionsToActOn = controllerContext.partitionsOnBroker(id).filter { partition =>
         controllerContext.partitionReplicaAssignment(partition).size > 1 && controllerContext.partitionLeadershipInfo.contains(partition)
       }
+      // 把这个Broker上的partition分为两部分一部分是：leader-partition 一部分是：follower-partition
       val (partitionsLedByBroker, partitionsFollowedByBroker) = partitionsToActOn.partition { partition =>
         controllerContext.partitionLeadershipInfo(partition).leaderAndIsr.leader == id
       }
+      // leader-partition (我猜：可能是要去触发partition的leader重新选举)
       partitionStateMachine.handleStateChanges(partitionsLedByBroker.toSeq, OnlinePartition, Option(ControlledShutdownPartitionLeaderElectionStrategy))
       try {
+        // 向这个要关闭的Broker发生停止副本复制的消息
         brokerRequestBatch.newBatch()
         partitionsFollowedByBroker.foreach { partition =>
           brokerRequestBatch.addStopReplicaRequestForBrokers(Seq(id), partition, deletePartition = false,
@@ -1087,6 +1090,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
         case e: IllegalStateException =>
           handleIllegalState(e)
       }
+      // follower-partition (修改isr...)
       // If the broker is a follower, updates the isr in ZK and notifies the current leader
       replicaStateMachine.handleStateChanges(partitionsFollowedByBroker.map(partition =>
         PartitionAndReplica(partition, id)).toSeq, OfflineReplica)
@@ -1097,6 +1101,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
             leaderIsrAndControllerEpoch.leaderAndIsr.leader == id && controllerContext.partitionReplicaAssignment(topicPartition).size > 1
         }.keys
       }
+      // TODO 为什么会在操作完成之后再取取这个值 @joe
       replicatedPartitionsBrokerLeads().toSet
     }
   }

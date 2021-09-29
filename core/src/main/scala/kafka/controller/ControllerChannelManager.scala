@@ -483,6 +483,7 @@ class ControllerBrokerRequestBatch(controller: KafkaController, stateChangeLogge
         // changes the order in which the requests are sent for the same partitions, but that's OK.
         val stopReplicaRequest = new StopReplicaRequest.Builder(controllerId, controllerEpoch, false,
           replicasToGroup.map(_.replica.topicPartition).toSet.asJava)
+
         controller.sendRequest(broker, ApiKeys.STOP_REPLICA, stopReplicaRequest)
 
         replicasToNotGroup.foreach { r =>
