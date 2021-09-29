@@ -1021,7 +1021,13 @@ class ReplicaManager(val config: KafkaConfig,
     }
   }
 
-  // TODO broker主节点选举过程
+  /**
+   * 当前Borker上的Partition 变成leader或者变成follower
+   * @param correlationId 这是kafka请求带在header上的一个值，类似于requestId
+   * @param leaderAndIsrRequest
+   * @param onLeadershipChange
+   * @return
+   */
   def becomeLeaderOrFollower(correlationId: Int,
                              leaderAndIsrRequest: LeaderAndIsrRequest,
                              onLeadershipChange: (Iterable[Partition], Iterable[Partition]) => Unit): LeaderAndIsrResponse = {
@@ -1043,6 +1049,7 @@ class ReplicaManager(val config: KafkaConfig,
 
         // First check partition's leader epoch
         val partitionState = new mutable.HashMap[Partition, LeaderAndIsrRequest.PartitionState]()
+        // 选出新增的partition
         val newPartitions = leaderAndIsrRequest.partitionStates.asScala.keys.filter(topicPartition => getPartition(topicPartition).isEmpty)
 
         leaderAndIsrRequest.partitionStates.asScala.foreach { case (topicPartition, stateInfo) =>
@@ -1076,9 +1083,11 @@ class ReplicaManager(val config: KafkaConfig,
           }
         }
 
+        // 筛选出该Broker上即将成为leader的partition
         val partitionsTobeLeader = partitionState.filter { case (_, stateInfo) =>
           stateInfo.basePartitionState.leader == localBrokerId
         }
+        // 筛选出该Broker上即将成为follower的partition
         val partitionsToBeFollower = partitionState -- partitionsTobeLeader.keys
 
         val partitionsBecomeLeader = if (partitionsTobeLeader.nonEmpty)

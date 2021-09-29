@@ -386,6 +386,9 @@ class ZooKeeperClient(connectString: String,
     })
   }
 
+  /**
+   * kafka唯一的watcher，通过此watcher分发事件
+   */
   // package level visibility for testing only
   private[zookeeper] object ZooKeeperClientWatcher extends Watcher {
     override def process(event: WatchedEvent): Unit = {

@@ -376,6 +376,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = Time.SYSTEM, threadNameP
     }
 
     _zkClient = createZkClient(config.zkConnect, secureAclsEnabled)
+    // 创建kafka顶层目录
     _zkClient.createTopLevelPaths()
   }
 
