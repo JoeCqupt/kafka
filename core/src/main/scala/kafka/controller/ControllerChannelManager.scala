@@ -477,6 +477,8 @@ class ControllerBrokerRequestBatch(controller: KafkaController, stateChangeLogge
         debug(s"The stop replica request (delete = true) sent to broker $broker is ${stopReplicaWithDelete.mkString(",")}")
         debug(s"The stop replica request (delete = false) sent to broker $broker is ${stopReplicaWithoutDelete.mkString(",")}")
 
+        // 将请求分为两组：一组是可以批量发送请求的（无callback）
+        // 这里有个问题：这个callback都是非null的 TODO @joe
         val (replicasToGroup, replicasToNotGroup) = replicaInfoList.partition(r => !r.deletePartition && r.callback == null)
 
         // Send one StopReplicaRequest for all partitions that require neither delete nor callback. This potentially

@@ -108,8 +108,9 @@ class KafkaApis(val requestChannel: RequestChannel,
         // 获取topic的metadata
         case ApiKeys.METADATA => handleTopicMetadataRequest(request)
         case ApiKeys.LEADER_AND_ISR => handleLeaderAndIsrRequest(request)
+        // 来自controller下发停止副本复制
         case ApiKeys.STOP_REPLICA => handleStopReplicaRequest(request)
-        // 来自leader下发的meta信息
+        // 来自controller下发的meta信息
         case ApiKeys.UPDATE_METADATA => handleUpdateMetadataRequest(request)
         // 受控Broker下线操作
         case ApiKeys.CONTROLLED_SHUTDOWN => handleControlledShutdownRequest(request)
