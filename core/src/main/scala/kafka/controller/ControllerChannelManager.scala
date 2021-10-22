@@ -419,17 +419,21 @@ class ControllerBrokerRequestBatch(controller: KafkaController, stateChangeLogge
             else "become-follower"
           stateChangeLog.trace(s"Sending $typeOfRequest LeaderAndIsr request $state to broker $broker for partition $topicPartition")
         }
+        // 获取所有分区leader所在的BrokerIds
         val leaderIds = leaderAndIsrPartitionStates.map(_._2.basePartitionState.leader).toSet
+        // 筛选&获取所有分区的的leader node
         val leaders = controllerContext.liveOrShuttingDownBrokers.filter(b => leaderIds.contains(b.id)).map {
           _.node(controller.config.interBrokerListenerName)
         }
         val leaderAndIsrRequestBuilder = new LeaderAndIsrRequest.Builder(leaderAndIsrRequestVersion, controllerId,
           controllerEpoch, leaderAndIsrPartitionStates.asJava, leaders.asJava)
         controller.sendRequest(broker, ApiKeys.LEADER_AND_ISR, leaderAndIsrRequestBuilder,
+          // 回调触发事件：LeaderAndIsrResponseReceived
           (r: AbstractResponse) => controller.eventManager.put(controller.LeaderAndIsrResponseReceived(r, broker)))
       }
       leaderAndIsrRequestMap.clear()
 
+      // step2： 处理updateMetadataRequest
       updateMetadataRequestPartitionInfoMap.foreach { case (tp, partitionState) =>
         stateChangeLog.trace(s"Sending UpdateMetadata request $partitionState to brokers $updateMetadataRequestBrokerSet " +
           s"for partition $tp")
