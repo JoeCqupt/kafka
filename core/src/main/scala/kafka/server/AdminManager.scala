@@ -97,8 +97,10 @@ class AdminManager(val config: KafkaConfig,
             arguments.replicasAssignments.asScala.map { case (partitionId, replicas) =>
               (partitionId.intValue, replicas.asScala.map(_.intValue))
             }
-          } else
+          } else {
+            // 如果没有指定partition副本的分配信息的话，则由kafka自动分配
             AdminUtils.assignReplicasToBrokers(brokers, arguments.numPartitions, arguments.replicationFactor)
+          }
         }
         trace(s"Assignments for topic $topic are $assignments ")
 

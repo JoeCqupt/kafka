@@ -255,6 +255,7 @@ class PartitionStateMachine(config: KafkaConfig,
     val successfulElections = mutable.Buffer.empty[TopicPartition]
     var remaining = partitions
     while (remaining.nonEmpty) {
+      // TODO 这里的partitions应该是remaining 新版本已经修复
       val (success, updatesToRetry, failedElections) = doElectLeaderForPartitions(partitions, partitionLeaderElectionStrategy)
       remaining = updatesToRetry
       successfulElections ++= success
@@ -319,6 +320,7 @@ class PartitionStateMachine(config: KafkaConfig,
     val shuttingDownBrokers  = controllerContext.shuttingDownBrokerIds.toSet
     val (partitionsWithoutLeaders, partitionsWithLeaders) = partitionLeaderElectionStrategy match {
       case OfflinePartitionLeaderElectionStrategy =>
+        // partition Leader下线，触发新的Leader Election
         leaderForOffline(validPartitionsForElection).partition { case (_, newLeaderAndIsrOpt, _) => newLeaderAndIsrOpt.isEmpty }
       case ReassignPartitionLeaderElectionStrategy =>
         leaderForReassign(validPartitionsForElection).partition { case (_, newLeaderAndIsrOpt, _) => newLeaderAndIsrOpt.isEmpty }
@@ -333,12 +335,15 @@ class PartitionStateMachine(config: KafkaConfig,
     }
     val recipientsPerPartition = partitionsWithLeaders.map { case (partition, leaderAndIsrOpt, recipients) => partition -> recipients }.toMap
     val adjustedLeaderAndIsrs = partitionsWithLeaders.map { case (partition, leaderAndIsrOpt, recipients) => partition -> leaderAndIsrOpt.get }.toMap
+    // 更新zk信息
     val UpdateLeaderAndIsrResult(successfulUpdates, updatesToRetry, failedUpdates) = zkClient.updateLeaderAndIsr(
       adjustedLeaderAndIsrs, controllerContext.epoch)
     successfulUpdates.foreach { case (partition, leaderAndIsr) =>
       val replicas = controllerContext.partitionReplicaAssignment(partition)
       val leaderIsrAndControllerEpoch = LeaderIsrAndControllerEpoch(leaderAndIsr, controllerContext.epoch)
+      // 更新leaderAndIsr缓存
       controllerContext.partitionLeadershipInfo.put(partition, leaderIsrAndControllerEpoch)
+      // 通知集群新的leaderAndIsr信息
       controllerBrokerRequestBatch.addLeaderAndIsrRequestForBrokers(recipientsPerPartition(partition), partition,
         leaderIsrAndControllerEpoch, replicas, isNew = false)
     }
@@ -347,11 +352,14 @@ class PartitionStateMachine(config: KafkaConfig,
 
   private def leaderForOffline(leaderIsrAndControllerEpochs: Seq[(TopicPartition, LeaderIsrAndControllerEpoch)]):
   Seq[(TopicPartition, Option[LeaderAndIsr], Seq[Int])] = {
+    // 区分是否有存活的isr
     val (partitionsWithNoLiveInSyncReplicas, partitionsWithLiveInSyncReplicas) = leaderIsrAndControllerEpochs.partition { case (partition, leaderIsrAndControllerEpoch) =>
       val liveInSyncReplicas = leaderIsrAndControllerEpoch.leaderAndIsr.isr.filter(replica => controllerContext.isReplicaOnline(replica, partition))
       liveInSyncReplicas.isEmpty
     }
+    // 获取topic的配置
     val (logConfigs, failed) = zkClient.getLogConfigs(partitionsWithNoLiveInSyncReplicas.map { case (partition, _) => partition.topic }, config.originals())
+    // 是否允许不在isr中的副本选举为leader
     val partitionsWithUncleanLeaderElectionState = partitionsWithNoLiveInSyncReplicas.map { case (partition, leaderIsrAndControllerEpoch) =>
       if (failed.contains(partition.topic)) {
         logFailedStateChange(partition, partitionState(partition), OnlinePartition, failed(partition.topic))
@@ -360,6 +368,7 @@ class PartitionStateMachine(config: KafkaConfig,
         (partition, Option(leaderIsrAndControllerEpoch), logConfigs(partition.topic).uncleanLeaderElectionEnable.booleanValue())
       }
     } ++ partitionsWithLiveInSyncReplicas.map { case (partition, leaderIsrAndControllerEpoch) => (partition, Option(leaderIsrAndControllerEpoch), false) }
+    //
     partitionsWithUncleanLeaderElectionState.map { case (partition, leaderIsrAndControllerEpochOpt, uncleanLeaderElectionEnabled) =>
       val assignment = controllerContext.partitionReplicaAssignment(partition)
       val liveReplicas = assignment.filter(replica => controllerContext.isReplicaOnline(replica, partition))
@@ -368,6 +377,7 @@ class PartitionStateMachine(config: KafkaConfig,
         val isr = leaderIsrAndControllerEpoch.leaderAndIsr.isr
         val leaderOpt = PartitionLeaderElectionAlgorithms.offlinePartitionLeaderElection(assignment, isr, liveReplicas.toSet, uncleanLeaderElectionEnabled, controllerContext)
         val newLeaderAndIsrOpt = leaderOpt.map { leader =>
+          // 新的ISR列表
           val newIsr = if (isr.contains(leader)) isr.filter(replica => controllerContext.isReplicaOnline(replica, partition))
           else List(leader)
           leaderIsrAndControllerEpoch.leaderAndIsr.newLeaderAndIsr(leader, newIsr)
@@ -440,6 +450,7 @@ class PartitionStateMachine(config: KafkaConfig,
 
 object PartitionLeaderElectionAlgorithms {
   def offlinePartitionLeaderElection(assignment: Seq[Int], isr: Seq[Int], liveReplicas: Set[Int], uncleanLeaderElectionEnabled: Boolean, controllerContext: ControllerContext): Option[Int] = {
+    // 在副本中找： 存活的副本&在isr中的副本当选新的leader； 否则需要看配置：uncleanLeaderElectionEnabled
     assignment.find(id => liveReplicas.contains(id) && isr.contains(id)).orElse {
       if (uncleanLeaderElectionEnabled) {
         val leaderOpt = assignment.find(liveReplicas.contains)

@@ -460,6 +460,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
 
     // If replica failure did not require leader re-election, inform brokers of the offline replica
     // Note that during leader re-election, brokers update their metadata
+    // 如果没有partition的leader重新选举的话，需要手动触发meta更新
     if (partitionsWithoutLeader.isEmpty) {
       sendUpdateMetadataRequest(controllerContext.liveOrShuttingDownBrokerIds.toSeq)
     }
@@ -1081,8 +1082,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
       try {
         // 向这个要关闭的Broker发生停止副本复制的消息
         brokerRequestBatch.newBatch()
-        partitionsFollowedByBroker.foreach { partition =>
-          brokerRequestBatch.addStopReplicaRequestForBrokers(Seq(id), partition, deletePartition = false,
+        partitionsFollowedByBroker.foreach { partition => brokerRequestBatch.addStopReplicaRequestForBrokers(Seq(id), partition, deletePartition = false,
             (_, _) => ())
         }
         brokerRequestBatch.sendRequestsToBrokers(epoch)
@@ -1092,8 +1092,7 @@ class KafkaController(val config: KafkaConfig, zkClient: KafkaZkClient, time: Ti
       }
       // follower-partition (修改isr...)
       // If the broker is a follower, updates the isr in ZK and notifies the current leader
-      replicaStateMachine.handleStateChanges(partitionsFollowedByBroker.map(partition =>
-        PartitionAndReplica(partition, id)).toSeq, OfflineReplica)
+      replicaStateMachine.handleStateChanges(partitionsFollowedByBroker.map(partition => PartitionAndReplica(partition, id)).toSeq, OfflineReplica)
       def replicatedPartitionsBrokerLeads() = {
         trace(s"All leaders = ${controllerContext.partitionLeadershipInfo.mkString(",")}")
         controllerContext.partitionLeadershipInfo.filter {

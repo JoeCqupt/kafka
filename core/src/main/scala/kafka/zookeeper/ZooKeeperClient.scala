@@ -220,6 +220,7 @@ class ZooKeeperClient(connectString: String,
     var nanos = timeUnit.toNanos(timeout)
     inLock(isConnectedOrExpiredLock) {
       var state = connectionState
+      // 这两个条件判断表示：只要是在连接状态，就一只重试
       while (!state.isConnected && state.isAlive) {
         if (nanos <= 0) {
           throw new ZooKeeperClientTimeoutException(s"Timed out waiting for connection while in state: $state")
