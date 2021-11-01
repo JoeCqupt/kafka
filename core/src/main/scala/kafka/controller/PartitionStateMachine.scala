@@ -201,6 +201,7 @@ class PartitionStateMachine(config: KafkaConfig,
   private def initializeLeaderAndIsrForPartitions(partitions: Seq[TopicPartition]): Seq[TopicPartition] = {
     val successfulInitializations = mutable.Buffer.empty[TopicPartition]
     val replicasPerPartition = partitions.map(partition => partition -> controllerContext.partitionReplicaAssignment(partition))
+    // 过滤掉 不在线的partition
     val liveReplicasPerPartition = replicasPerPartition.map { case (partition, replicas) =>
         val liveReplicasForPartition = replicas.filter(replica => controllerContext.isReplicaOnline(replica, partition))
         partition -> liveReplicasForPartition
@@ -215,7 +216,7 @@ class PartitionStateMachine(config: KafkaConfig,
         "replica is alive."
       logFailedStateChange(partition, NewPartition, OnlinePartition, new StateChangeFailedException(failMsg))
     }
-    // partition - {LeaderAndIsr, epoch}
+    // partition - {LeaderAndIsr, epoch} 选举第一个副本为partition leader
     val leaderIsrAndControllerEpochs = partitionsWithLiveReplicas.map { case (partition, liveReplicas) =>
       val leaderAndIsr = LeaderAndIsr(liveReplicas.head, liveReplicas.toList)
       val leaderIsrAndControllerEpoch = LeaderIsrAndControllerEpoch(leaderAndIsr, controllerContext.epoch)

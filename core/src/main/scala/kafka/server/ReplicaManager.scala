@@ -1015,6 +1015,7 @@ class ReplicaManager(val config: KafkaConfig,
         throw new ControllerMovedException(stateChangeLogger.messageWithPrefix(stateControllerEpochErrorMessage))
       } else {
         val deletedPartitions = metadataCache.updateCache(correlationId, updateMetadataRequest)
+        // 更新controllerEpoch
         controllerEpoch = updateMetadataRequest.controllerEpoch
         deletedPartitions
       }

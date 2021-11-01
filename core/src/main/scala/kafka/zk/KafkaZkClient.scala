@@ -1477,6 +1477,7 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
 
         remainingRequests.clear()
         requestResponsePairs.foreach { case (request, response) =>
+          // 对于 CONNECTIONLOSS 需要一直重试，直到重新连接成功
           if (response.resultCode == Code.CONNECTIONLOSS)
             remainingRequests += request
           else
