@@ -229,8 +229,10 @@ class KafkaApis(val requestChannel: RequestChannel,
 
     if (authorize(request.session, ClusterAction, Resource.ClusterResource)) {
       val deletedPartitions = replicaManager.maybeUpdateMetadataCache(correlationId, updateMetadataRequest)
-      if (deletedPartitions.nonEmpty)
+      if (deletedPartitions.nonEmpty) {
+        // TODO 处理删除的partition
         groupCoordinator.handleDeletedPartitions(deletedPartitions)
+      }
 
       if (adminManager.hasDelayedTopicOperations) {
         updateMetadataRequest.partitionStates.keySet.asScala.map(_.topic).foreach { topic =>
