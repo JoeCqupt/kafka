@@ -325,6 +325,7 @@ class ControllerBrokerRequestBatch(controller: KafkaController, stateChangeLogge
     updateMetadataRequestPartitionInfoMap.clear()
   }
 
+  //  通知某topicPartition所在的"Brokers/某一个Broker"最新的LeaderAndIsr信息
   def addLeaderAndIsrRequestForBrokers(brokerIds: Seq[Int], topicPartition: TopicPartition,
                                        leaderIsrAndControllerEpoch: LeaderIsrAndControllerEpoch,
                                        replicas: Seq[Int], isNew: Boolean) {
@@ -340,10 +341,14 @@ class ControllerBrokerRequestBatch(controller: KafkaController, stateChangeLogge
         replicas.map(Integer.valueOf).asJava,
         isNew || alreadyNew))
     }
-
+    // 可以看出如果有LeaderAndIsr的变化的话，一定伴随着整个集群内的MetaData的更新
     addUpdateMetadataRequestForBrokers(controllerContext.liveOrShuttingDownBrokerIds.toSeq, Set(topicPartition))
   }
 
+  /**
+   *  1. 副本下线 (包含副本正常关闭：ControlledShutdown)
+   *  2. 副本删除
+   */
   def addStopReplicaRequestForBrokers(brokerIds: Seq[Int], topicPartition: TopicPartition, deletePartition: Boolean,
                                       callback: (AbstractResponse, Int) => Unit) {
     brokerIds.filter(b => b >= 0).foreach { brokerId =>
@@ -475,6 +480,7 @@ class ControllerBrokerRequestBatch(controller: KafkaController, stateChangeLogge
       updateMetadataRequestBrokerSet.clear()
       updateMetadataRequestPartitionInfoMap.clear()
 
+      // 处理stopReplica请求
       stopReplicaRequestMap.foreach { case (broker, replicaInfoList) =>
         val stopReplicaWithDelete = replicaInfoList.filter(_.deletePartition).map(_.replica).toSet
         val stopReplicaWithoutDelete = replicaInfoList.filterNot(_.deletePartition).map(_.replica).toSet

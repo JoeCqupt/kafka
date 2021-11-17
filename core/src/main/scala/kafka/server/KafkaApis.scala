@@ -107,6 +107,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         case ApiKeys.LIST_OFFSETS => handleListOffsetRequest(request)
         // 获取topic的metadata
         case ApiKeys.METADATA => handleTopicMetadataRequest(request)
+        // leader&isr变更
         case ApiKeys.LEADER_AND_ISR => handleLeaderAndIsrRequest(request)
         // 来自controller下发停止副本复制
         case ApiKeys.STOP_REPLICA => handleStopReplicaRequest(request)

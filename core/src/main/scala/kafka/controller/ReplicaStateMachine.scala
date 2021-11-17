@@ -94,6 +94,12 @@ class ReplicaStateMachine(config: KafkaConfig,
     }
   }
 
+  /**
+   *
+   * @param replicas 应为是副本，可能是多个副本在一个Broker上
+   * @param targetState
+   * @param callbacks
+   */
   def handleStateChanges(replicas: Seq[PartitionAndReplica], targetState: ReplicaState,
                          callbacks: Callbacks = new Callbacks()): Unit = {
     if (replicas.nonEmpty) {
