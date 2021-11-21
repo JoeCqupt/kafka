@@ -1054,6 +1054,7 @@ class ReplicaManager(val config: KafkaConfig,
         val newPartitions = leaderAndIsrRequest.partitionStates.asScala.keys.filter(topicPartition => getPartition(topicPartition).isEmpty)
 
         leaderAndIsrRequest.partitionStates.asScala.foreach { case (topicPartition, stateInfo) =>
+          // Ps: 可能会创建出新的Partition对象
           val partition = getOrCreatePartition(topicPartition)
           val partitionLeaderEpoch = partition.getLeaderEpoch
           if (partition eq ReplicaManager.OfflinePartition) {
@@ -1169,6 +1170,7 @@ class ReplicaManager(val config: KafkaConfig,
     val partitionsToMakeLeaders: mutable.Set[Partition] = mutable.Set()
 
     try {
+      // TODO: remove Fetcher
       // First stop fetchers for all the partitions
       replicaFetcherManager.removeFetcherForPartitions(partitionState.keySet.map(_.topicPartition))
       // Update the partition information to be the leader

@@ -235,7 +235,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         groupCoordinator.handleDeletedPartitions(deletedPartitions)
       }
 
-      if (adminManager.hasDelayedTopicOperations) {
+        if (adminManager.hasDelayedTopicOperations) {
         updateMetadataRequest.partitionStates.keySet.asScala.map(_.topic).foreach { topic =>
           // 为什么要在这里再次尝试checkAndComplete?
           // 因为这里metadata发生了变更，所以再次尝试是有可能成功的！！

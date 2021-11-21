@@ -176,6 +176,7 @@ class Partition(val topic: String,
   def getOrCreateReplica(replicaId: Int = localBrokerId, isNew: Boolean = false): Replica = {
     allReplicasMap.getAndMaybePut(replicaId, {
       if (isReplicaLocal(replicaId)) {
+        // 如果是本机副本，需要特殊处理
         val adminZkClient = new AdminZkClient(zkClient)
         val props = adminZkClient.fetchEntityConfig(ConfigType.Topic, topic)
         val config = LogConfig.fromProps(logManager.currentDefaultConfig.originals, props)
@@ -274,13 +275,18 @@ class Partition(val topic: String,
       // to maintain the decision maker controller's epoch in the zookeeper path
       controllerEpoch = partitionStateInfo.basePartitionState.controllerEpoch
       // add replicas that are new
+      // Ps: 如果是新Partition则创建新的Replica
       val newInSyncReplicas = partitionStateInfo.basePartitionState.isr.asScala.map(r => getOrCreateReplica(r, partitionStateInfo.isNew)).toSet
       // remove assigned replicas that have been removed by the controller
+      // Ps: 删除移除的副本信息
       (assignedReplicas.map(_.brokerId) -- newAssignedReplicas).foreach(removeReplica)
       inSyncReplicas = newInSyncReplicas
+      // 完整创建所有的Replica
       newAssignedReplicas.foreach(id => getOrCreateReplica(id, partitionStateInfo.isNew))
 
+      // leader副本
       val leaderReplica = getReplica().get
+      // 当前partition leader任期内的 offset
       val leaderEpochStartOffset = leaderReplica.logEndOffset.messageOffset
       info(s"$topicPartition starts at Leader Epoch ${partitionStateInfo.basePartitionState.leaderEpoch} from " +
         s"offset $leaderEpochStartOffset. Previous Leader Epoch was: $leaderEpoch")
@@ -299,9 +305,11 @@ class Partition(val topic: String,
         epochCache.assign(leaderEpoch, leaderEpochStartOffset)
       }
 
+      // Ps： 判断是不是新的leader
       val isNewLeader = !leaderReplicaIdOpt.contains(localBrokerId)
       val curLeaderLogEndOffset = leaderReplica.logEndOffset.messageOffset
       val curTimeMs = time.milliseconds
+      // TODO 设置其他副本的LastCaughtUpTime
       // initialize lastCaughtUpTime of replicas as well as their lastFetchTimeMs and lastFetchLeaderLogEndOffset.
       (assignedReplicas - leaderReplica).foreach { replica =>
         val lastCaughtUpTimeMs = if (inSyncReplicas.contains(replica)) curTimeMs else 0L
@@ -309,14 +317,18 @@ class Partition(val topic: String,
       }
 
       if (isNewLeader) {
+        // TODO 创建高水位标记
         // construct the high watermark metadata for the new leader replica
         leaderReplica.convertHWToLocalOffsetMetadata()
+        // 标记新的partition Leader
         // mark local replica as the leader after converting hw
         leaderReplicaIdOpt = Some(localBrokerId)
+        // TODO 更新其他副本的offset
         // reset log end offset for remote replicas
         assignedReplicas.filter(_.brokerId != localBrokerId).foreach(_.updateLogReadResult(LogReadResult.UnknownLogReadResult))
       }
       // we may need to increment high watermark since ISR could be down to 1
+      // TODO 判断leader hw是否需要变更
       (maybeIncrementLeaderHW(leaderReplica), isNewLeader)
     }
     // some delayed operations may be unblocked after HW changed

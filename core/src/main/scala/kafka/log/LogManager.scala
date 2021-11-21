@@ -851,6 +851,7 @@ class LogManager(logDirs: Seq[File],
       val dirCounts = (zeros ++ logCounts).toBuffer
 
       // choose the directory with the least logs in it
+      // 选一个拥有最少日志的目录
       val leastLoaded = dirCounts.sortBy(_._2).head
       new File(leastLoaded._1)
     }
