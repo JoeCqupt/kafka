@@ -362,6 +362,7 @@ class Partition(val topic: String,
 
       // If the leader is unchanged and the epochs are no more than one change apart, indicate that no follower changes are required
       // Otherwise, we missed a leader epoch update, which means the leader's log may have been truncated prior to the current epoch.
+      // TODO 为什么leaderEpoch这样取值； 猜测：这里的意思是没有消息被遗漏处理就可以不用变更
       if (leaderReplicaIdOpt.contains(newLeaderBrokerId) && (leaderEpoch == oldLeaderEpoch || leaderEpoch == oldLeaderEpoch + 1)) {
         false
       }

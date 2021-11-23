@@ -1108,6 +1108,7 @@ class ReplicaManager(val config: KafkaConfig,
            * In this case ReplicaManager.allPartitions will map this topic-partition to an empty Partition object.
            * we need to map this topic-partition to OfflinePartition instead.
            */
+          // Partition有可能创建Replica失败(由于本机的KafkaStorageException)，所以需要修改Partition的状态
           if (getReplica(topicPartition).isEmpty && (allPartitions.get(topicPartition) ne ReplicaManager.OfflinePartition))
             allPartitions.put(topicPartition, ReplicaManager.OfflinePartition)
         )
@@ -1122,6 +1123,7 @@ class ReplicaManager(val config: KafkaConfig,
         val newOnlineReplicas = newPartitions.flatMap(topicPartition => getReplica(topicPartition))
         // Add future replica to partition's map
         val futureReplicasAndInitialOffset = newOnlineReplicas.filter { replica =>
+          // 注意看这里：过滤出是future的Replica
           logManager.getLog(replica.topicPartition, isFuture = true).isDefined
         }.map { replica =>
           replica.topicPartition -> BrokerAndInitialOffset(BrokerEndPoint(config.brokerId, "localhost", -1), replica.highWatermark.messageOffset)
